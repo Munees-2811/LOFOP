@@ -85,8 +85,9 @@ tests/           # pytest suite mirroring the package layout
 ## Development
 
 ```bash
-python -m pytest          # run the test suite
-ruff check lofop tests    # lint
+python -m pytest                                   # run the test suite
+ruff check lofop tests benchmarks                  # lint
+python benchmarks/bench_core.py -o report.md       # core engine micro-benchmarks
 ```
 
 ## License
