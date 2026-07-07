@@ -36,6 +36,7 @@ and the build order. Module-level documents (e.g. [`core-engine.md`](core-engine
 | 6 | `lofop.deploy` | ONNX/TensorRT/OpenVINO/TorchScript export, REST serving, Docker images (**images done**) | In progress |
 | 7 | `lofop.cli` | `lofop` CLI (`dataset` tools done; `train`/`predict`/`export` planned) | In progress |
 | 8 | `lofop.utils` | Visualization, dataset statistics, benchmarking, profiling | Planned |
+| -- | `lofop.ops` | Native C++ box ops (IoU, NMS, class-aware NMS) with Python fallback | **Done** |
 
 Each phase lands with its own tests and docs before the next begins. Dependencies point downward
 only: `data`/`models`/`training` depend on `core`, never on each other's internals; interaction

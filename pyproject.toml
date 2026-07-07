@@ -46,6 +46,9 @@ Homepage = "https://github.com/tedo001/LOFOP"
 [tool.setuptools.packages.find]
 include = ["lofop*"]
 
+[tool.setuptools.package-data]
+lofop = ["csrc/*.cpp"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"

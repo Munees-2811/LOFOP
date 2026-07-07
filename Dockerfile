@@ -20,6 +20,13 @@ COPY lofop/ lofop/
 RUN pip install torch --index-url https://download.pytorch.org/whl/cpu \
     && pip install .
 
+# Compile the native C++ ops (NMS/IoU fast path), then drop the toolchain.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends g++ \
+    && python -c "from lofop.ops.native import build_native; build_native()" \
+    && apt-get purge -y g++ && apt-get autoremove -y \
+    && rm -rf /var/lib/apt/lists/*
+
 USER lofop
 ENTRYPOINT ["lofop"]
 CMD ["--help"]

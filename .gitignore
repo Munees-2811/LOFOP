@@ -1,6 +1,8 @@
-# Byte-compiled / caches
+# Byte-compiled / caches / native builds
 __pycache__/
 *.py[cod]
+*.so
+*.dylib
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
