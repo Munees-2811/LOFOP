@@ -10,6 +10,7 @@ from lofop.core.events import Event, EventBus, Subscription
 from lofop.core.exceptions import (
     BuildError,
     ConfigError,
+    DataError,
     EventError,
     LofopError,
     PluginError,
@@ -28,6 +29,7 @@ __all__ = [
     "ConfigError",
     "RegistryError",
     "BuildError",
+    "DataError",
     "PluginError",
     "EventError",
     "configure_logging",

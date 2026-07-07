@@ -22,7 +22,11 @@ classifiers = [
 ]
 dependencies = [
     "PyYAML>=6.0",
+    "pillow>=10.0",
 ]
+
+[project.scripts]
+lofop = "lofop.cli:main"
 
 [project.optional-dependencies]
 dev = [

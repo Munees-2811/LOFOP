@@ -50,6 +50,10 @@ class PluginError(LofopError):
     """Raised when discovering, loading, or activating a plugin fails."""
 
 
+class DataError(LofopError):
+    """Raised for invalid datasets, unreadable annotation files, or bad formats."""
+
+
 class EventError(LofopError):
     """Raised when one or more event handlers fail and errors are not suppressed."""
 
