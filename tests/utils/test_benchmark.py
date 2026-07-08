@@ -58,7 +58,7 @@ class TestReportAndTable:
     def test_reference_columns_render_verbatim(self):
         table = render_table(
             [self.make_report()],
-            reference_columns={"RT-DETR-R18 (paper)": {"Parameters": "20,000,000"}},
+            reference_columns={"Reference (paper)": {"Parameters": "20,000,000"}},
         )
-        assert "RT-DETR-R18 (paper)" in table
+        assert "Reference (paper)" in table
         assert "20,000,000" in table

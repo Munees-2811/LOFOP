@@ -1,4 +1,4 @@
-"""YOLO (darknet-style) format adapter.
+"""YOLO-style format adapter.
 
 Layout under a dataset root directory::
 
@@ -32,7 +32,7 @@ logger = get_logger(__name__)
 
 @FORMATS.register(name="yolo")
 class YoloAdapter(DatasetAdapter):
-    """Adapter for darknet/YOLO-style dataset roots.
+    """Adapter for YOLO-style dataset roots.
 
     ``source``/``target`` are the dataset root directory described in the
     module docstring.

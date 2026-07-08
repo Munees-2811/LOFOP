@@ -1,4 +1,4 @@
-# LOFOP-Detect small: the reference variant benchmarked against RT-DETR-R18.
+# LOFOP-Detect small: the reference variant of the model family.
 extends: [base.yaml]
 
 model:

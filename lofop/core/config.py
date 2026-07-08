@@ -4,10 +4,10 @@ LOFOP configs are plain YAML files promoted to :class:`Config` objects that
 support attribute access, dotted-path lookup, deep merging, inheritance, and
 value interpolation. Design decisions:
 
-* **YAML data, not executable config.** Python-file configs (Detectron2 lazy
-  configs, MMEngine py configs) are expressive but hard to validate, diff,
-  and ship to production systems that must treat configs as data. LOFOP
-  configs are declarative; behavior lives in registered components.
+* **YAML data, not executable config.** Python-file configs are expressive
+  but hard to validate, diff, and ship to production systems that must treat
+  configs as data. LOFOP configs are declarative; behavior lives in
+  registered components.
 * **Inheritance via ``extends``.** A config may list one or more parent
   files (paths relative to the child file). Parents are deep-merged in order,
   then the child is merged on top. This mirrors how experiment configs are

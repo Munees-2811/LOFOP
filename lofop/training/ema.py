@@ -1,9 +1,9 @@
 """Exponential moving average of model weights.
 
 EMA weights consistently evaluate 0.5-1 mAP above the raw weights for
-detectors (one of the training-strategy lessons taken from the RT-DETR
-recipe). The decay ramps up over early updates so the average is not
-dominated by random initialization.
+detectors, a well-established training-strategy improvement. The decay ramps
+up over early updates so the average is not dominated by random
+initialization.
 """
 
 from __future__ import annotations

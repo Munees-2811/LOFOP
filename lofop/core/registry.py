@@ -7,10 +7,9 @@ and instantiated from declarative config specs via :meth:`Registry.build`.
 Design decisions, and why:
 
 * **Flat string names per group, groups collected in a hub.** A single global
-  namespace (Detectron2-style) collides quickly; deep hierarchical scopes
-  (MMEngine-style) are powerful but hard to reason about. LOFOP uses one
-  namespace per component group and a :class:`RegistryHub` that owns the
-  groups.
+  namespace collides quickly; deep hierarchical scopes are powerful but hard
+  to reason about. LOFOP uses one namespace per component group and a
+  :class:`RegistryHub` that owns the groups.
 * **Qualified type names for cross-group references.** A spec's ``type`` is
   either ``"Name"`` (resolved in the registry doing the building) or
   ``"group/Name"`` (resolved through the hub). Nested specs are recursively

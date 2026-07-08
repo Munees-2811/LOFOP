@@ -1,10 +1,8 @@
 # LOFOP
 
 **LOFOP** is a modular, enterprise-grade computer vision framework built on PyTorch, with its own
-original detector: **LOFOP-Detect**. It is an independent design informed by the architecture of
-mature open-source projects (Ultralytics, MMDetection/MMEngine, Detectron2, OpenCV, PyTorch,
-Transformers) without deriving from their code; RT-DETR serves as the research baseline that
-LOFOP-Detect is designed against, never copied.
+original detector: **LOFOP-Detect**. It is an independent design and implementation that follows
+modern computer-vision engineering practices while remaining self-contained.
 
 > **Status:** Phases 1-5 complete — core engine, data subsystem, cross-platform native ops,
 > LOFOP-Detect models, training engine, and ONNX + TensorRT export. 196 tests passing. See
@@ -67,9 +65,9 @@ lofop export --config configs/lofop-detect/n.yaml --format tensorrt --fp16 -o mo
 ```
 
 Measured on this repo's CI-sized shapes demo (30 CPU epochs, 128px): mAP@50 0.73,
-mAP@50:95 0.49, 143 CPU FPS, 5.1 MB. Real accuracy comparisons against RT-DETR await the
-COCO GPU run — the protocol is committed in `docs/lofop-detect.md`, and the table renders `-`
-until numbers are measured.
+mAP@50:95 0.49, 143 CPU FPS, 5.1 MB. Accuracy on a real dataset awaits a full GPU training
+run — the protocol is documented in `docs/lofop-detect.md`, and the table renders `-` until
+numbers are measured.
 
 **SDK** — everything is a registry entry built from YAML:
 

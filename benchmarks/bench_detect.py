@@ -1,10 +1,9 @@
 """Benchmark LOFOP-Detect variants: parameters and forward latency.
 
 Measures what this machine can honestly measure -- model size and CPU forward
-latency at 640x640 -- for each config in configs/lofop-detect/. RT-DETR's
-published parameter counts are printed alongside as context; accuracy (mAP)
-comparison requires the Phase 4 training run on GPU hardware and is
-deliberately absent here (see docs/lofop-detect.md section 5).
+latency at 640x640 -- for each config in configs/lofop-detect/. Accuracy (mAP)
+requires a training run on GPU hardware and is deliberately absent here (see
+docs/lofop-detect.md).
 
 Usage::
 
@@ -30,9 +29,6 @@ from lofop.core.config import Config  # noqa: E402
 from lofop.registries import HUB  # noqa: E402
 
 _CONFIG_DIR = REPO_ROOT / "configs" / "lofop-detect"
-# Published reference points (RT-DETR paper); different hardware, shown as
-# scale context only, never as a measured comparison.
-_REFERENCES = [("RT-DETR-R18 (paper)", 20_000_000), ("RT-DETR-R50 (paper)", 42_000_000)]
 
 
 def measure_variant(config_path: Path, size: int, repeats: int) -> tuple[str, int, float]:
@@ -74,12 +70,9 @@ def main(argv: list[str] | None = None) -> int:
         name, params, latency = measure_variant(config_path, args.size, args.repeats)
         print(f"  lofop-detect-{name}: {params:,} params, {latency:.1f} ms", file=sys.stderr)
         lines.append(f"| lofop-detect-{name} | {params:,} | {latency:.1f} |")
-    for ref_name, ref_params in _REFERENCES:
-        lines.append(f"| {ref_name} | {ref_params:,} | n/a (GPU model) |")
     lines += [
         "",
-        "Reference rows are published parameter counts for scale context; latency and",
-        "accuracy comparisons against RT-DETR require the Phase 4 GPU training run.",
+        "Accuracy (mAP) requires a GPU training run and is not measured here.",
     ]
     report = "\n".join(lines) + "\n"
     print(report)

@@ -53,8 +53,8 @@ happens through registries, configs, and events.
   are recursively built *only* when qualified. Unqualified nested mappings pass through as plain
   data. This rule is what keeps config semantics predictable: you can always tell from the YAML
   alone what will be instantiated.
-- Trade-off vs. alternatives: a single global namespace (Detectron2-style) collides at scale;
-  hierarchical scopes with inheritance (MMEngine-style) make lookup rules hard to predict. Flat
+- Trade-off vs. alternatives: a single global namespace collides at scale; deeply nested
+  hierarchical scopes with inheritance make lookup rules hard to predict. Flat
   groups + explicit qualification is the middle: one extra token in configs buys unambiguous
   resolution.
 

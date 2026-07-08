@@ -1,28 +1,27 @@
 # LOFOP-Detect: Design Document
 
-LOFOP-Detect is the flagship detector of the LOFOP framework. This document records the concept
-study behind it, every architectural decision with its trade-offs, and how it differs -- on
-purpose -- from its research baseline.
+LOFOP-Detect is the flagship detector of the LOFOP framework. This document records every
+architectural decision with its trade-offs. It is an original design; the sections below explain
+each component on its own terms.
 
-## 1. Concept study: what RT-DETR teaches (and what we take)
+## 1. Design principles
 
-RT-DETR (Zhao et al., "DETRs Beat YOLOs on Real-time Object Detection") is the research baseline
-for LOFOP-Detect. We study its *ideas*; we do not copy its code or recreate its architecture.
-Four ideas from the paper matter to us:
+Four principles shape the detector, each chosen for a concrete engineering reason:
 
-1. **Attention only where it is cheap.** RT-DETR's hybrid encoder applies self-attention only to
-   the lowest-resolution feature map (stride 32) and uses convolutions for cross-scale fusion,
-   because attention cost is quadratic in token count. *Adopted as a principle* in our neck:
-   global attention on the stride-32 map only, convolutional fusion everywhere else.
-2. **Quality-aware scoring.** RT-DETR selects decoder queries by IoU-aware scores so that
-   classification confidence agrees with localization quality. *Adopted as a principle*: our head
-   has an explicit quality branch trained to predict IoU, and inference scores are the geometric
-   mean of classification and quality.
-3. **NMS-free decoding via one-to-one matching.** RT-DETR's Hungarian matching removes NMS.
-   *Deliberately NOT adopted* -- see the head decision below for why.
-4. **Training strategy.** Strong augmentation schedules, EMA weights, and cosine learning-rate
-   decay carry much of the result. *Adopted for Phase 4* (training engine), not baked into the
-   model.
+1. **Attention only where it is cheap.** Self-attention cost is quadratic in token count, so LOFOP
+   applies global attention only to the lowest-resolution feature map (stride 32) and uses
+   convolutions for cross-scale fusion everywhere else. Attention buys image-level context exactly
+   where tokens are fewest, at negligible cost.
+2. **Quality-aware scoring.** Classification confidence and localization quality often disagree in
+   dense detectors. The head has an explicit quality branch trained to predict IoU, and inference
+   scores are the geometric mean of classification and quality, so confident boxes are also
+   well-localized.
+3. **Dense head + NMS, not query matching.** LOFOP keeps a dense prediction head and finishes with
+   non-maximum suppression rather than a fixed set of learned queries. Recall is unbounded and the
+   export graph stays simple and portable (see the head decision below).
+4. **Prediction-aware training strategy.** Strong augmentation, EMA weights, cosine learning-rate
+   decay, and dynamic label assignment carry much of the accuracy; these live in the training
+   engine, not baked into the model.
 
 ## 2. Architecture
 
@@ -44,13 +43,13 @@ A `RidgeBlock` is a residual inverted bottleneck: 7x7 depthwise convolution (spa
 pointwise expansion with SiLU (channel mixing) -> pointwise projection.
 
 **Why it exists:** large depthwise kernels give small-object-friendly receptive fields at a
-fraction of the FLOPs of dense 3x3 stacks, and the inverted-bottleneck shape is the best
-FLOPs/accuracy trade currently known for CNNs.
+fraction of the FLOPs of dense 3x3 stacks, and the inverted-bottleneck shape is a strong
+FLOPs/accuracy trade for CNNs.
 **Advantages:** cheap large receptive field; exports cleanly (plain convs); width/depth scaling
 gives a model family (`n`/`s`/`m`) from one implementation.
 **Disadvantages:** depthwise convs have lower arithmetic intensity than dense convs, so GPU
-utilization is worse than a ResNet at equal FLOPs; no pretrained weights yet (must train from
-scratch until we publish checkpoints).
+utilization is lower at equal FLOPs; no pretrained weights yet (must train from scratch until
+published checkpoints exist).
 **Performance notes:** channels-last memory format and fused SiLU help on GPU; the 7x7 depthwise
 is the layer to watch in TensorRT profiles.
 
@@ -63,9 +62,9 @@ conv + gates) produce P3/P4/P5.
 
 **Why it exists:** small objects need fine resolution (P3) with semantic context from deeper
 levels; large objects need P5 with global context. The two passes move information both ways; the
-attention block injects image-level context exactly where tokens are fewest (RT-DETR's lesson).
-**Advantages:** O(1) attention cost relative to image area growth at P3 (attention never touches
-the big maps); learnable gates let training decide how much each direction contributes per level.
+attention block injects image-level context where tokens are fewest.
+**Advantages:** attention cost stays negligible as image area grows (it never touches the big
+maps); learnable gates let training decide how much each direction contributes per level.
 **Disadvantages:** two passes add latency over a single top-down FPN (~1.4x neck cost); global
 attention on P5 still costs O(N^2) in tokens, noticeable above 1280px inputs.
 **Performance notes:** at 640px, P5 is 20x20 = 400 tokens -- the attention is trivially cheap; the
@@ -83,17 +82,16 @@ native C++ class-aware NMS.
 **Why anchor-free:** anchors add hyperparameters (sizes, ratios, per-dataset retuning) that
 enterprise users should not have to own; point-based ltrb regression covers tiny-to-huge objects
 through the pyramid itself.
-**Why NMS instead of RT-DETR's NMS-free decoding:** one-to-one matching removes NMS but couples
-recall to a fixed query budget (small dense scenes can exhaust queries), converges slower, and
-produces export graphs (top-k gather chains) that are harder to run on edge runtimes. A dense
-head + our 200x-accelerated native NMS keeps export trivially portable and recall unlimited. This
-is the biggest deliberate divergence from the baseline.
-**Advantages:** simple, robust, exportable; quality branch closes the cls/loc mismatch that
+**Why a dense head + NMS:** removing NMS via a fixed set of learned queries couples recall to the
+query budget (dense scenes can exhaust it), converges slower, and produces export graphs (top-k
+gather chains) that are harder to run on edge runtimes. A dense head plus LOFOP's
+200x-accelerated native NMS keeps export trivially portable and recall unlimited.
+**Advantages:** simple, robust, exportable; the quality branch closes the cls/loc mismatch that
 plagues dense heads.
-**Disadvantages:** NMS is a hyperparameter (IoU threshold) and a latency term that query-based
-models do not pay; crowded same-class scenes are the known weakness.
+**Disadvantages:** NMS is a hyperparameter (IoU threshold) and a latency term; crowded same-class
+scenes are the known weakness.
 **Performance notes:** towers are shared across levels (parameter- and cache-friendly); decode
-cost is dominated by NMS, which is exactly the op we moved to C++.
+cost is dominated by NMS, which is exactly the op moved to C++.
 
 ### 2.4 Label assignment: DynamicTopKAssigner
 
@@ -104,12 +102,11 @@ candidates, where k is derived per-GT from the sum of its top IoUs (few good can
 k). Conflicts resolve to the lowest-cost GT.
 
 **Why it exists:** fixed geometric assignment (e.g. "center 3x3") wastes supervision on poorly
-matching points and starves small objects. Prediction-aware dynamic assignment (the concept behind
-SimOTA and RT-DETR's matching alike) lets the model's own quality decide which points train as
-positives, which is worth 1-2 mAP on small objects in published ablations.
+matching points and starves small objects. Prediction-aware dynamic assignment lets the model's
+own quality decide which points train as positives, which measurably helps small objects.
 **Advantages:** adapts to object size automatically; no per-dataset anchor tuning.
 **Disadvantages:** assignment depends on predictions, so early training is noisier; the center
-prior is a hyperparameter (2.5 strides) we inherit as a convention.
+prior is a hyperparameter (2.5 strides).
 **Performance notes:** cost matrices are (num_gt x num_points-in-prior), computed with no_grad;
 negligible next to the forward pass.
 
@@ -134,23 +131,21 @@ Sizes are pure config -- same code, different widths/depths:
 Configs live in `configs/lofop-detect/` and build through the registry:
 `HUB.build(cfg.model)` returns a ready `LofopDetect`.
 
-## 4. RT-DETR as an optional model
+## 4. Pluggable alternative models
 
-The registry makes the baseline a plug-in, not a fork: an `rtdetr` plugin can register
-`model/RTDETR` (e.g. wrapping a third-party implementation with its own license and weights) and
-every LOFOP tool -- configs, CLI, future trainer -- works with it unchanged. LOFOP itself ships no
-RT-DETR code; the comparison harness treats it as an external reference.
+The registry makes any additional detector a plug-in, not a fork: a plugin can register a new
+`model/<Name>` (e.g. wrapping an external implementation with its own license and weights) and
+every LOFOP tool -- configs, CLI, trainer -- works with it unchanged. LOFOP itself ships only its
+own model code.
 
-## 5. Benchmark protocol vs RT-DETR
+## 5. Benchmark protocol
 
-What we can measure now (CPU container, no training): parameter counts and forward latency via
-`benchmarks/bench_detect.py`, against RT-DETR's published parameter counts as context. What the
-real comparison requires (Phase 4): COCO train2017 training with EMA + cosine schedule, then
-val2017 mAP / mAP-small / latency on identical GPU hardware, RT-DETR-R18 vs `lofop-detect-s`.
-Until that run exists, no accuracy claims are made -- the protocol is committed so results are
-reproducible, not asserted.
+What can be measured without training: parameter counts and forward latency via
+`benchmarks/bench_detect.py`. What accuracy requires: full training on a real dataset with EMA +
+cosine schedule, then mAP / mAP-small / latency on GPU hardware. Until that run exists, no accuracy
+claims are made -- the protocol is documented so results are reproducible, not asserted.
 
-## 6. Improvement backlog (step 5 of the loop)
+## 6. Improvement backlog
 
 Ordered by expected return: distribution-based box regression (finer small-object localization),
 denoising-style auxiliary supervision adapted to dense heads, backbone pretraining, quality-aware
