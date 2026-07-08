@@ -39,6 +39,10 @@ rich = [
 models = [
     "torch>=2.0",
 ]
+deploy = [
+    "onnx>=1.15",
+    "onnxruntime>=1.17",
+]
 
 [project.urls]
 Homepage = "https://github.com/tedo001/LOFOP"

@@ -6,9 +6,9 @@ mature open-source projects (Ultralytics, MMDetection/MMEngine, Detectron2, Open
 Transformers) without deriving from their code; RT-DETR serves as the research baseline that
 LOFOP-Detect is designed against, never copied.
 
-> **Status:** Phases 1-4 complete — core engine, data subsystem, native C++ ops, LOFOP-Detect
-> models, and the training engine. 177 tests passing. See [`docs/architecture.md`](docs/architecture.md)
-> for the full roadmap and per-phase status.
+> **Status:** Phases 1-5 complete — core engine, data subsystem, native C++ ops, LOFOP-Detect
+> models, training engine, and ONNX export. 184 tests passing. See
+> [`docs/architecture.md`](docs/architecture.md) for the full roadmap and per-phase status.
 
 ## What works today
 
@@ -25,6 +25,9 @@ LOFOP-Detect is designed against, never copied.
   verified-identical Python fallback, so a compiler is never required.
 - **Benchmarking** — `lofop benchmark` renders the standard metric table (mAP, FPS, params,
   FLOPs, model size) and never prints a number that was not actually measured.
+- **ONNX export** — `lofop export` writes a numerically verified ONNX graph (network + box
+  decoding); `postprocess_dense` finishes inference torch-free with the C++ NMS, so serving
+  hosts need only onnxruntime + the LOFOP core. Details: [`docs/deploy.md`](docs/deploy.md).
 - **Deployment scaffolding** — CPU / CUDA / ONNX Runtime Docker images ([`docker/`](docker/README.md)).
 
 ## Installation
@@ -53,6 +56,7 @@ lofop dataset stats    --format coco --source instances.json -o stats.md
 ```bash
 python examples/train_shapes.py --epochs 30 --workdir runs/shapes
 lofop benchmark --config configs/lofop-detect/n.yaml --config configs/lofop-detect/s.yaml -o table.md
+lofop export --config configs/lofop-detect/n.yaml --checkpoint runs/shapes/checkpoints/best.pt -o model.onnx
 ```
 
 Measured on this repo's CI-sized shapes demo (30 CPU epochs, 128px): mAP@50 0.73,
@@ -89,9 +93,10 @@ lofop/
   data/          # canonical dataset model, COCO/YOLO/VOC adapters, validator, statistics
   models/        # LOFOP-Detect: RidgeNet, DeltaFusion, ApexHead, losses, assigner
   training/      # trainer, EMA, checkpoints, torch data bridge, COCO-protocol evaluator
+  deploy/        # ONNX export + torch-free post-processing
   ops/ + csrc/   # native C++ IoU/NMS with Python fallback
   utils/         # model benchmarking (metric table, FLOPs, FPS)
-  cli.py         # `lofop` command: dataset / train / benchmark
+  cli.py         # `lofop` command: dataset / train / benchmark / export
 configs/         # model family definitions (n, s) via config inheritance
 docker/          # CPU, CUDA, and ONNX Runtime images
 docs/            # architecture, per-module references, LOFOP-Detect design doc
@@ -112,7 +117,7 @@ python benchmarks/bench_detect.py                  # detector params + latency
 
 ## Roadmap
 
-Next phases: inference sources (video/RTSP/webcam), ONNX/TensorRT export, REST serving, and CI.
+Next phases: inference sources (video/RTSP/webcam), TensorRT/OpenVINO engines, REST serving, and CI.
 The full subsystem map with per-phase status lives in [`docs/architecture.md`](docs/architecture.md).
 
 ## License
