@@ -1,0 +1,12 @@
+include LICENSE
+include README.md
+include MANUAL.md
+include pyproject.toml
+recursive-include lofop/csrc *.cpp
+recursive-include configs *.yaml
+recursive-include docs *.md
+prune agent_space
+prune tests
+prune runs
+global-exclude *.py[cod]
+global-exclude __pycache__

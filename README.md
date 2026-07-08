@@ -37,13 +37,28 @@ installing, training, exporting, deploying, and troubleshooting LOFOP.
 ## Installation
 
 ```bash
-pip install -e ".[dev]"          # framework + dev tools (PyYAML, Pillow, pytest, ruff)
-pip install -e ".[models]"       # + PyTorch, for lofop.models / lofop.training
+pip install lofop            # from PyPI
+yay -S lofop                 # Arch Linux (AUR)
+```
+
+Optional feature sets (extras):
+
+```bash
+pip install "lofop[models]"      # + PyTorch, for lofop.models / lofop.training
+pip install "lofop[deploy]"      # + onnx, onnxruntime, for ONNX export
+pip install "lofop[all]"         # models + deploy in one go
 python -c "from lofop.ops import build_native; build_native()"   # optional C++ fast path
 ```
 
+From a source checkout instead:
+
+```bash
+pip install -e ".[dev]"          # framework + dev tools (pytest, ruff, build, twine)
+```
+
 Requires Python 3.9+. The core and data layers run without PyTorch (edge/CI friendly); torch
-attaches only to the model and training subsystems.
+attaches only to the model and training subsystems. Maintainer release steps live in
+[`docs/packaging.md`](docs/packaging.md).
 
 ## Quickstart
 

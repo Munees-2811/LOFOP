@@ -43,16 +43,33 @@ a deep-learning runtime. Torch attaches only to `lofop.models` and `lofop.traini
 
 ## 2. Installation
 
-From the repository root:
+Install from a package manager:
 
 ```bash
-pip install -e ".[dev]"        # framework + dev tools (PyYAML, Pillow, pytest, ruff)
-pip install -e ".[models]"     # + PyTorch, for lofop.models / lofop.training
-pip install -e ".[deploy]"     # + onnx, onnxruntime, for ONNX export
-pip install -e ".[tensorrt]"   # + tensorrt, numpy (NVIDIA GPU machines only)
+pip install lofop             # PyPI
+yay -S lofop                  # Arch Linux (AUR)
 ```
 
-Combine extras: `pip install -e ".[dev,models,deploy]"`.
+Add optional feature sets with pip extras:
+
+```bash
+pip install "lofop[models]"     # + PyTorch, for lofop.models / lofop.training
+pip install "lofop[deploy]"     # + onnx, onnxruntime, for ONNX export
+pip install "lofop[tensorrt]"   # + tensorrt, numpy (NVIDIA GPU machines only)
+pip install "lofop[all]"        # models + deploy
+```
+
+On the AUR the optional features are `optdepends` (`python-pytorch`, `python-onnx`,
+`python-onnxruntime`, `gcc`) — install them as needed.
+
+From a source checkout instead:
+
+```bash
+pip install -e ".[dev]"        # framework + dev tools (pytest, ruff, build, twine)
+pip install -e ".[dev,models,deploy]"   # combine extras
+```
+
+Maintainers: release steps (PyPI + AUR) are in [`docs/packaging.md`](packaging.md).
 
 ### Platform notes
 
