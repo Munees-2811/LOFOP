@@ -116,7 +116,14 @@ negligible next to the forward pass.
   are extremely class-imbalanced and focal weighting is the standard, well-understood fix.
 - **Box:** GIoU loss on positives -- scale-invariant (small boxes are not out-shouted by big
   ones) and supplies gradients even for non-overlapping predictions.
-- **Quality:** BCE against the IoU of the predicted box with its assigned GT.
+- **Quality:** BCE against the IoU of the predicted box with its assigned GT on positives, plus a
+  gently weighted calibration term pushing background quality toward 0 (sigmoid^2-modulated BCE,
+  weight 0.25; quality bias initialized low). Without it, background quality is unsupervised and
+  the fused score `sqrt(cls * quality)` inflates weak classifications into false positives.
+  Measured on the fixed benchmark (`benchmarks/quality_benchmark.py`): FP/image at conf 0.25
+  cut 2.81 -> 1.22 with recall unchanged and mAP@50 +2.2 points. Full-weight background
+  supervision was tried first and REJECTED: it cost ~4 mAP by letting thousands of easy negatives
+  compete with the few positives for the quality branch's gradient budget.
 - Total: `cls + 2.0 * giou + quality`, normalized by positive count (batch-averaged).
 
 ## 3. Model family and config

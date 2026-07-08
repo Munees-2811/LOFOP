@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import ctypes
 from collections.abc import Sequence
+from typing import Any
 
 from lofop.core.exceptions import LofopError
 from lofop.ops.native import load_native
@@ -26,7 +27,9 @@ IouMatrix = list[list[float]]
 
 # Class-aware NMS separates classes by shifting each class onto its own
 # coordinate island; the offset just needs to exceed any real coordinate.
-_CLASS_OFFSET = 1e7
+# Public so callers doing the shift themselves (e.g. in tensor math, to hit
+# the zero-copy nms path) stay consistent with batched_nms.
+CLASS_OFFSET = 1e7
 
 
 def _parse_boxes(boxes: BoxLike) -> list[tuple[float, float, float, float]]:
@@ -40,6 +43,33 @@ def _parse_boxes(boxes: BoxLike) -> list[tuple[float, float, float, float]]:
 
 def _flatten_boxes(boxes: BoxLike) -> list[float]:
     return [v for box in _parse_boxes(boxes) for v in box]
+
+
+def _c_float_view(obj: Any, count: int):
+    """ctypes float pointer for ``obj``, zero-copy when possible.
+
+    A contiguous float32 CPU tensor-like (duck-typed via ``data_ptr``) is
+    viewed in place -- no per-element Python conversion -- which is what makes
+    the native NMS path fast on detector outputs. Anything else is copied
+    through the generic list path. Returns ``(pointer, keepalive)``; the
+    keepalive must stay referenced while the pointer is in use.
+    """
+    if callable(getattr(obj, "data_ptr", None)):
+        try:
+            zero_copy = (
+                str(obj.dtype) == "torch.float32"
+                and obj.device.type == "cpu"
+                and obj.is_contiguous()
+                and obj.numel() == count
+            )
+        except AttributeError:
+            zero_copy = False
+        if zero_copy:
+            return ctypes.cast(obj.data_ptr(), ctypes.POINTER(ctypes.c_float)), obj
+        flat = obj.detach().reshape(-1).tolist()
+        array = (ctypes.c_float * count)(*flat)
+        return array, array
+    return None, None
 
 
 def iou_matrix(boxes_a: BoxLike, boxes_b: BoxLike, *, native: bool | None = None) -> IouMatrix:
@@ -103,11 +133,20 @@ def nms(
     if native is True and lib is None:
         raise LofopError("Native ops library is not built; run lofop.ops.native.build_native()")
     if lib is not None:
-        c_boxes = (ctypes.c_float * (n * 4))(*_flatten_boxes(boxes))
-        c_scores = (ctypes.c_float * n)(*[float(s) for s in scores])
+        c_boxes, keep_boxes = _c_float_view(boxes, n * 4)
+        if c_boxes is None:
+            c_boxes = (ctypes.c_float * (n * 4))(*_flatten_boxes(boxes))
+            keep_boxes = c_boxes
+        c_scores, keep_scores = _c_float_view(scores, n)
+        if c_scores is None:
+            c_scores = (ctypes.c_float * n)(*[float(s) for s in scores])
+            keep_scores = c_scores
         keep = (ctypes.c_int32 * n)()
         kept = lib.lofop_nms(c_boxes, c_scores, n, float(iou_threshold), int(max_keep), keep)
+        del keep_boxes, keep_scores  # buffers alive through the native call
         return list(keep[:kept])
+    if hasattr(boxes, "tolist"):
+        boxes, scores = boxes.tolist(), [float(s) for s in scores]
     return _nms_python(boxes, scores, iou_threshold, max_keep)
 
 
@@ -131,7 +170,7 @@ def batched_nms(
             context={"boxes": len(boxes), "scores": len(scores), "classes": len(class_ids)},
         )
     shifted = [
-        [float(v) + _CLASS_OFFSET * int(cls) for v in box]
+        [float(v) + CLASS_OFFSET * int(cls) for v in box]
         for box, cls in zip(boxes, class_ids)
     ]
     return nms(shifted, scores, iou_threshold=iou_threshold, max_keep=max_keep, native=native)

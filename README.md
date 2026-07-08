@@ -83,10 +83,10 @@ lofop export --config configs/lofop-detect/n.yaml --checkpoint runs/shapes/check
 lofop export --config configs/lofop-detect/n.yaml --format tensorrt --fp16 -o model.engine   # NVIDIA GPU
 ```
 
-Measured on this repo's CI-sized shapes demo (30 CPU epochs, 128px): mAP@50 0.73,
-mAP@50:95 0.49, 143 CPU FPS, 5.1 MB. Accuracy on a real dataset awaits a full GPU training
-run — the protocol is documented in `docs/lofop-detect.md`, and the table renders `-` until
-numbers are measured.
+Measured on the fixed-protocol benchmark (`benchmarks/quality_benchmark.py`, 30 CPU epochs,
+128px shapes): mAP@50 0.92, best F1 0.90, 0.8 false positives/image at conf 0.25, 115 FPS
+end-to-end predict. Accuracy on a real dataset awaits a full GPU training run — the protocol
+is documented in `docs/lofop-detect.md`, and the table renders `-` until numbers are measured.
 
 **SDK** — everything is a registry entry built from YAML:
 
