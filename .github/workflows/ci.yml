@@ -1,0 +1,65 @@
+name: ci
+
+# Runs lint and the full test suite on every push to the main branches and on
+# every pull request, so nothing broken can be merged and the package stays
+# releasable at all times.
+
+on:
+  push:
+    branches: [main, tedo]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install ruff
+        run: python -m pip install "ruff>=0.4"
+      - name: Lint
+        run: ruff check lofop tests benchmarks examples
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.9", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install CPU PyTorch
+        run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install LOFOP with test extras
+        run: python -m pip install -e ".[dev,models,deploy]"
+      - name: Build native C++ ops
+        run: python -c "from lofop.ops import build_native, backend; build_native(); print('ops backend:', backend())"
+      - name: Run tests
+        run: python -m pytest tests/ -q
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Build and check distributions
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*

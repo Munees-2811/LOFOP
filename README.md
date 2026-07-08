@@ -1,5 +1,9 @@
 # LOFOP
 
+[![ci](https://github.com/tedo001/LOFOP/actions/workflows/ci.yml/badge.svg)](https://github.com/tedo001/LOFOP/actions/workflows/ci.yml)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
+
 **LOFOP** is a modular, enterprise-grade computer vision framework built on PyTorch, with its own
 original detector: **LOFOP-Detect**. It is an independent design and implementation that follows
 modern computer-vision engineering practices while remaining self-contained.
@@ -135,9 +139,13 @@ python benchmarks/bench_ops.py                     # C++ vs Python ops speedups
 python benchmarks/bench_detect.py                  # detector params + latency
 ```
 
+Every push and pull request runs the full test suite (Python 3.9/3.11/3.12, native C++ ops
+built) and lint via GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), and a
+distribution build check, so `main` stays releasable.
+
 ## Roadmap
 
-Next phases: inference sources (video/RTSP/webcam), OpenVINO engines, REST serving, and CI.
+Next phases: inference sources (video/RTSP/webcam), OpenVINO engines, and REST serving.
 The full subsystem map with per-phase status lives in [`docs/architecture.md`](docs/architecture.md).
 
 ## License
