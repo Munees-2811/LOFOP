@@ -130,10 +130,10 @@ def render_table(
 
     Args:
         reports: Measured model columns.
-        reference_columns: Optional extra columns of published numbers, e.g.
-            ``{"RT-DETR-R18 (paper)": {"Parameters": "20,000,000", ...}}`` --
-            rendered verbatim so measured and quoted values are never mixed
-            silently.
+        reference_columns: Optional extra columns of externally sourced
+            numbers, e.g. ``{"Reference (paper)": {"Parameters": "20,000,000",
+            ...}}`` -- rendered verbatim so measured and quoted values are
+            never mixed silently.
     """
     def acc(report: ModelReport, attr: str) -> str:
         if report.accuracy is None:

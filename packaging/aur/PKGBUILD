@@ -1,0 +1,36 @@
+# Maintainer: LOFOP Contributors
+#
+# AUR package for LOFOP. Once published, users install with:  yay -S lofop
+#
+# The source is the PyPI sdist, so this package tracks the pip release. After
+# a new PyPI release, run `updpkgsums` to refresh the checksum, regenerate
+# .SRCINFO (`makepkg --printsrcinfo > .SRCINFO`), and push to the AUR.
+
+pkgname=lofop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc="LOFOP: a modular, enterprise-grade computer vision framework"
+arch=('any')
+url="https://github.com/tedo001/LOFOP"
+license=('Apache-2.0')
+depends=('python' 'python-yaml' 'python-pillow')
+optdepends=(
+  'python-pytorch: models, training, and export (lofop.models / lofop.training)'
+  'python-onnx: ONNX export'
+  'python-onnxruntime: ONNX export verification and inference'
+  'gcc: build the native C++ ops fast path'
+)
+makedepends=('python-build' 'python-installer' 'python-wheel' 'python-setuptools')
+source=("https://files.pythonhosted.org/packages/source/${pkgname:0:1}/${pkgname}/${pkgname}-${pkgver}.tar.gz")
+sha256sums=('SKIP')
+
+build() {
+  cd "${pkgname}-${pkgver}"
+  python -m build --wheel --no-isolation
+}
+
+package() {
+  cd "${pkgname}-${pkgver}"
+  python -m installer --destdir="${pkgdir}" dist/*.whl
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+}

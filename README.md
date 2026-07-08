@@ -1,10 +1,8 @@
 # LOFOP
 
 **LOFOP** is a modular, enterprise-grade computer vision framework built on PyTorch, with its own
-original detector: **LOFOP-Detect**. It is an independent design informed by the architecture of
-mature open-source projects (Ultralytics, MMDetection/MMEngine, Detectron2, OpenCV, PyTorch,
-Transformers) without deriving from their code; RT-DETR serves as the research baseline that
-LOFOP-Detect is designed against, never copied.
+original detector: **LOFOP-Detect**. It is an independent design and implementation that follows
+modern computer-vision engineering practices while remaining self-contained.
 
 > **Status:** Phases 1-5 complete — core engine, data subsystem, cross-platform native ops,
 > LOFOP-Detect models, training engine, and ONNX + TensorRT export. 196 tests passing. See
@@ -39,13 +37,28 @@ installing, training, exporting, deploying, and troubleshooting LOFOP.
 ## Installation
 
 ```bash
-pip install -e ".[dev]"          # framework + dev tools (PyYAML, Pillow, pytest, ruff)
-pip install -e ".[models]"       # + PyTorch, for lofop.models / lofop.training
+pip install lofop            # from PyPI
+yay -S lofop                 # Arch Linux (AUR)
+```
+
+Optional feature sets (extras):
+
+```bash
+pip install "lofop[models]"      # + PyTorch, for lofop.models / lofop.training
+pip install "lofop[deploy]"      # + onnx, onnxruntime, for ONNX export
+pip install "lofop[all]"         # models + deploy in one go
 python -c "from lofop.ops import build_native; build_native()"   # optional C++ fast path
 ```
 
+From a source checkout instead:
+
+```bash
+pip install -e ".[dev]"          # framework + dev tools (pytest, ruff, build, twine)
+```
+
 Requires Python 3.9+. The core and data layers run without PyTorch (edge/CI friendly); torch
-attaches only to the model and training subsystems.
+attaches only to the model and training subsystems. Maintainer release steps live in
+[`docs/packaging.md`](docs/packaging.md).
 
 ## Quickstart
 
@@ -67,9 +80,9 @@ lofop export --config configs/lofop-detect/n.yaml --format tensorrt --fp16 -o mo
 ```
 
 Measured on this repo's CI-sized shapes demo (30 CPU epochs, 128px): mAP@50 0.73,
-mAP@50:95 0.49, 143 CPU FPS, 5.1 MB. Real accuracy comparisons against RT-DETR await the
-COCO GPU run — the protocol is committed in `docs/lofop-detect.md`, and the table renders `-`
-until numbers are measured.
+mAP@50:95 0.49, 143 CPU FPS, 5.1 MB. Accuracy on a real dataset awaits a full GPU training
+run — the protocol is documented in `docs/lofop-detect.md`, and the table renders `-` until
+numbers are measured.
 
 **SDK** — everything is a registry entry built from YAML:
 

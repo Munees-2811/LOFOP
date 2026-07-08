@@ -70,15 +70,10 @@ def main(argv: list[str] | None = None) -> int:
         trainer.ema.module, "lofop-detect-n (shapes)",
         image_size=args.image_size, accuracy=metrics,
     )
-    table = render_table(
-        [report],
-        reference_columns={
-            "RT-DETR-R18 (paper, COCO)": {"Parameters": "20,000,000", "mAP@50:95": "46.5*"},
-        },
-    )
+    table = render_table([report])
     table += (
-        "\n*Reference column quotes published COCO numbers for scale context only --\n"
-        "the LOFOP column above is measured on the synthetic shapes dataset, not COCO.\n"
+        "\nMetrics are measured on the synthetic shapes dataset -- a wiring/verification\n"
+        "run, not a benchmark on a real dataset.\n"
     )
     print(table)
     (args.workdir / "metric-table.md").write_text(table, encoding="utf-8")
