@@ -1,24 +1,34 @@
 """Build and load the native C++ ops library.
 
 The C++ core is optional by design: every op in :mod:`lofop.ops` has a pure
-Python reference implementation, and the native library is a drop-in
-accelerator loaded through ctypes. This keeps LOFOP importable on machines
-with no compiler while letting deployments (and the Docker images) opt into
-native speed with one call::
+Python reference implementation (always available, works on every platform),
+and the native library is a drop-in accelerator loaded through ctypes. LOFOP
+therefore runs everywhere, and *additionally* gets 20-200x faster box ops
+when a C++ toolchain is present and the library is built::
 
     python -c "from lofop.ops.native import build_native; build_native()"
 
-The compiled library lands next to this module as ``_lofop_ops.so`` (or in
-``~/.cache/lofop`` when the package directory is read-only) and is picked up
-automatically on the next import.
+Toolchains supported, tried in this order (override with ``$CXX`` or the
+``compiler=`` argument):
+
+* Linux / macOS: ``g++``, ``clang++``, ``c++``
+* Windows: ``g++`` / ``clang++`` (MinGW-w64 or LLVM), then MSVC ``cl.exe``
+  (run from a Developer prompt so ``cl`` is on PATH)
+
+The compiled library lands next to this module (``_lofop_ops.so`` on
+Unix, ``_lofop_ops.dll`` on Windows), falling back to ``~/.cache/lofop`` when
+the package directory is read-only, and is picked up automatically next run.
+:func:`backend` reports which implementation is active.
 """
 
 from __future__ import annotations
 
 import ctypes
 import os
+import shutil
 import subprocess
-import sysconfig
+import sys
+import tempfile
 from pathlib import Path
 
 from lofop.core.exceptions import LofopError
@@ -26,6 +36,7 @@ from lofop.core.logging import get_logger
 
 _LIB_STEM = "_lofop_ops"
 _SOURCE = Path(__file__).resolve().parent.parent / "csrc" / "box_ops.cpp"
+_IS_WINDOWS = sys.platform.startswith("win")
 
 logger = get_logger(__name__)
 _loaded: ctypes.CDLL | None = None
@@ -33,15 +44,60 @@ _load_attempted = False
 
 
 def _lib_suffix() -> str:
-    return sysconfig.get_config_var("SHLIB_SUFFIX") or ".so"
+    """Loadable-library suffix for ctypes on this platform."""
+    return ".dll" if _IS_WINDOWS else ".so"
 
 
 def _candidate_paths() -> list[Path]:
     cache_dir = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "lofop"
+    suffix = _lib_suffix()
     return [
-        Path(__file__).resolve().parent / f"{_LIB_STEM}{_lib_suffix()}",
-        cache_dir / f"{_LIB_STEM}{_lib_suffix()}",
+        Path(__file__).resolve().parent / f"{_LIB_STEM}{suffix}",
+        cache_dir / f"{_LIB_STEM}{suffix}",
     ]
+
+
+def _compiler_candidates(explicit: str | None) -> list[str]:
+    """Ordered list of compiler binaries to try (only those on PATH)."""
+    if explicit:
+        return [explicit]
+    env = os.environ.get("CXX")
+    if env:
+        return [env]
+    if _IS_WINDOWS:
+        preference = ["g++", "clang++", "cl"]
+    else:
+        preference = ["g++", "clang++", "c++"]
+    return [name for name in preference if shutil.which(name)] or preference
+
+
+def _build_command(compiler: str, source: Path, target: Path) -> tuple[list[str], Path | None]:
+    """Build the compile command for a toolchain.
+
+    Returns the argv plus an optional working directory (MSVC scatters
+    intermediate .obj/.lib files into cwd, so it runs in a temp dir).
+    """
+    # Separator-agnostic basename so a Windows "C:\\VS\\cl.exe" path is
+    # recognized even when parsed on a POSIX host (and vice versa).
+    base = compiler.replace("\\", "/").rsplit("/", 1)[-1].lower()
+    name = base[:-4] if base.endswith(".exe") else base
+    if name == "cl":  # MSVC
+        workdir = Path(tempfile.mkdtemp(prefix="lofop_build_"))
+        cmd = [
+            compiler, "/nologo", "/O2", "/std:c++17", "/EHsc", "/LD",
+            str(source), f"/Fe:{target}", f"/Fo:{workdir}\\",
+        ]
+        return cmd, workdir
+    # GNU/Clang-style front end (g++, clang++, c++, MinGW g++).
+    cmd = [compiler, "-O3", "-std=c++17", "-shared"]
+    if _IS_WINDOWS:
+        # MinGW: statically link the runtimes so the DLL has no libgcc/
+        # libstdc++ load-time dependency.
+        cmd += ["-static-libgcc", "-static-libstdc++"]
+    else:
+        cmd.append("-fPIC")
+    cmd += [str(source), "-o", str(target)]
+    return cmd, None
 
 
 def build_native(*, force: bool = False, compiler: str | None = None) -> Path:
@@ -49,39 +105,44 @@ def build_native(*, force: bool = False, compiler: str | None = None) -> Path:
 
     Args:
         force: Rebuild even if a library already exists.
-        compiler: C++ compiler binary; defaults to ``$CXX`` or ``g++``.
+        compiler: Compiler binary to use. Defaults to ``$CXX`` or the first
+            available of the platform's preferred compilers.
 
     Raises:
-        LofopError: If no compiler is available or compilation fails.
+        LofopError: If no compiler is available or every attempt fails. The
+            pure Python ops keep working regardless -- building is optional.
     """
     existing = find_library()
     if existing is not None and not force:
         return existing
-    compiler = compiler or os.environ.get("CXX", "g++")
-    last_error: Exception | None = None
-    for target in _candidate_paths():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        cmd = [
-            compiler, "-O3", "-std=c++17", "-shared", "-fPIC",
-            str(_SOURCE), "-o", str(target),
-        ]
-        try:
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
-        except FileNotFoundError as exc:
-            raise LofopError(
-                "No C++ compiler found; install g++/clang++ or set CXX",
-                context={"compiler": compiler},
-            ) from exc
-        except (subprocess.CalledProcessError, OSError) as exc:
-            last_error = exc
+
+    candidates = _compiler_candidates(compiler)
+    errors: list[str] = []
+    for binary in candidates:
+        if shutil.which(binary) is None and compiler is None and not os.environ.get("CXX"):
             continue
-        logger.info("Built native ops library at %s", target)
-        _reset_cache()
-        return target
-    stderr = getattr(last_error, "stderr", "")
+        for target in _candidate_paths():
+            target.parent.mkdir(parents=True, exist_ok=True)
+            cmd, workdir = _build_command(binary, _SOURCE, target)
+            try:
+                subprocess.run(cmd, check=True, capture_output=True, text=True, cwd=workdir)
+            except FileNotFoundError:
+                errors.append(f"{binary}: not found")
+                break  # try next compiler, not next path
+            except (subprocess.CalledProcessError, OSError) as exc:
+                errors.append(f"{binary}: {getattr(exc, 'stderr', exc)}")
+                continue
+            finally:
+                if workdir is not None:
+                    shutil.rmtree(workdir, ignore_errors=True)
+            logger.info("Built native ops library at %s (via %s)", target, binary)
+            _reset_cache()
+            return target
+
     raise LofopError(
-        f"Failed to build native ops library: {last_error}",
-        context={"source": str(_SOURCE), "stderr": stderr},
+        "Could not build the native ops library; pure Python ops remain available. "
+        "Install a C++ toolchain (g++/clang++, or MSVC on Windows) or set CXX.",
+        context={"tried": candidates, "errors": errors},
     )
 
 
@@ -127,6 +188,11 @@ def load_native() -> ctypes.CDLL | None:
     _loaded = lib
     logger.debug("Loaded native ops library from %s", path)
     return lib
+
+
+def backend() -> str:
+    """Return the active ops backend: ``"native"`` (C++) or ``"python"``."""
+    return "native" if load_native() is not None else "python"
 
 
 def _reset_cache() -> None:

@@ -46,7 +46,49 @@ detections.boxes, detections.scores, detections.labels     # final results
 onnxruntime + LOFOP-core inference stack has no deep-learning-framework dependency. This is
 exactly the stack the `docker/Dockerfile-onnx` image ships.
 
+## TensorRT export
+
+```bash
+lofop export --config configs/lofop-detect/s.yaml --checkpoint best.pt \
+    --format tensorrt --fp16 -o model.engine
+```
+
+```python
+from lofop.deploy import export_tensorrt
+export_tensorrt(model, "model.engine", image_size=640, fp16=True)
+```
+
+Export is two-stage by design: **model -> ONNX -> engine**, reusing the same verified ONNX graph
+so the ONNX Runtime and TensorRT paths share one source of truth and one post-processing routine.
+Notes:
+
+- **FP16** is a single builder flag -- large speedup on NVIDIA hardware, negligible accuracy cost
+  for detectors.
+- **INT8** additionally needs representative calibration data
+  (`export_tensorrt(..., int8=True, calibration_inputs=[...])`); a minimal entropy calibrator
+  consumes the provided `(1, 3, S, S)` arrays.
+- TensorRT and a CUDA GPU are needed only for the engine-build step. The module imports without
+  them, the ONNX intermediate is always produced first, and a missing `tensorrt` package raises a
+  clear, actionable error instead of an opaque `ImportError`.
+- Engines are GPU- and TensorRT-version-specific -- build on the target hardware.
+
+## Native ops portability
+
+Post-processing NMS/IoU run through the native C++ fast path when the library is built, and
+through the pure-Python fallback otherwise -- on every OS. The builder auto-selects a toolchain:
+`g++`/`clang++`/`c++` on Linux/macOS, and `g++`/`clang++` (MinGW/LLVM) or MSVC `cl.exe` on Windows.
+Check which backend is live:
+
+```python
+from lofop.ops import backend, build_native
+build_native()      # optional; compiles the C++ library if a compiler is present
+print(backend())    # "native" or "python"
+```
+
+Nothing requires the C++ path -- it is a pure accelerator. `lofop.ops` and
+`postprocess_dense` work identically either way.
+
 ## Roadmap
 
-TensorRT and OpenVINO engine builders consume the same ONNX artifact (planned); TorchScript
-export is planned for torch-native serving.
+OpenVINO engine builders consume the same ONNX artifact (planned); TorchScript export is planned
+for torch-native serving.

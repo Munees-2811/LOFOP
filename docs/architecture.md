@@ -33,10 +33,10 @@ and the build order. Module-level documents (e.g. [`core-engine.md`](core-engine
 | 3 | `lofop.models` | LOFOP-Detect: RidgeNet, DeltaFusion, ApexHead, losses, dynamic assignment | **Done** (see docs/lofop-detect.md) |
 | 4 | `lofop.training` | Trainer (AMP, EMA, cosine schedule, resume), COCO-protocol evaluator, checkpoints, torch data bridge | **Done** (DDP path present, not CI-exercised) |
 | 5 | `lofop.inference` | Image/video/stream predictors, batching, RTSP/webcam sources | Planned |
-| 6 | `lofop.deploy` | ONNX export + torch-free post-processing done; TensorRT/OpenVINO/REST planned | In progress (see docs/deploy.md) |
+| 6 | `lofop.deploy` | ONNX + TensorRT export and torch-free post-processing done; OpenVINO/REST planned | In progress (see docs/deploy.md) |
 | 7 | `lofop.cli` | `lofop` CLI (`dataset` tools done; `train`/`predict`/`export` planned) | In progress |
 | 8 | `lofop.utils` | Model benchmarking (metric table, FLOPs, FPS, size) done; visualization planned | In progress |
-| -- | `lofop.ops` | Native C++ box ops (IoU, NMS, class-aware NMS) with Python fallback | **Done** |
+| -- | `lofop.ops` | Cross-platform native C++ box ops (IoU, NMS) with Python fallback; MSVC/MinGW/g++/clang | **Done** |
 
 Each phase lands with its own tests and docs before the next begins. Dependencies point downward
 only: `data`/`models`/`training` depend on `core`, never on each other's internals; interaction
