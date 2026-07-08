@@ -7,12 +7,24 @@ framework beside their ONNX runtime.
 
 from lofop.deploy.postprocess import Detections, postprocess_dense
 
-__all__ = ["Detections", "postprocess_dense", "export_onnx", "DenseExportWrapper"]
+__all__ = [
+    "Detections", "postprocess_dense",
+    "export_onnx", "DenseExportWrapper",
+    "export_tensorrt", "build_engine_from_onnx",
+]
+
+_ONNX_EXPORTS = {"export_onnx", "DenseExportWrapper"}
+_TRT_EXPORTS = {"export_tensorrt", "build_engine_from_onnx"}
 
 
 def __getattr__(name: str):
-    if name in ("export_onnx", "DenseExportWrapper"):
+    # Lazy so importing lofop.deploy never requires torch/tensorrt.
+    if name in _ONNX_EXPORTS:
         from lofop.deploy import onnx_export
 
         return getattr(onnx_export, name)
+    if name in _TRT_EXPORTS:
+        from lofop.deploy import tensorrt_export
+
+        return getattr(tensorrt_export, name)
     raise AttributeError(f"module 'lofop.deploy' has no attribute {name!r}")

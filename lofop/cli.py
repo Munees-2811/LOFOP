@@ -78,13 +78,17 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
     bench.add_argument("-o", "--output", type=Path, default=None, help="write the table here")
 
-    export = commands.add_parser("export", help="export a detector to ONNX")
+    export = commands.add_parser("export", help="export a detector to ONNX or TensorRT")
     export.add_argument("--config", required=True, help="model config YAML")
     export.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
+    export.add_argument(
+        "--format", choices=["onnx", "tensorrt"], default="onnx", help="export format",
+    )
     export.add_argument("--size", type=int, default=640, help="input resolution for the graph")
     export.add_argument("--opset", type=int, default=18, help="ONNX opset version")
     export.add_argument("--no-verify", action="store_true", help="skip onnxruntime verification")
-    export.add_argument("-o", "--output", type=Path, required=True, help="output .onnx path")
+    export.add_argument("--fp16", action="store_true", help="TensorRT: enable FP16 kernels")
+    export.add_argument("-o", "--output", type=Path, required=True, help="output path")
     return parser
 
 
@@ -185,7 +189,6 @@ def _cmd_export(args: argparse.Namespace) -> int:
 
     import lofop.models  # noqa: F401  (registers model components)
     from lofop.core.config import Config
-    from lofop.deploy import export_onnx
     from lofop.registries import HUB
 
     cfg = Config.load(args.config)
@@ -194,6 +197,17 @@ def _cmd_export(args: argparse.Namespace) -> int:
         payload = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
         state = payload.get("ema", {}).get("module", payload.get("model", payload))
         model.load_state_dict(state)
+
+    if args.format == "tensorrt":
+        from lofop.deploy import export_tensorrt
+
+        path = export_tensorrt(model, args.output, image_size=args.size, fp16=args.fp16)
+        size_mb = path.stat().st_size / 1e6
+        print(f"Exported TensorRT engine {path} ({size_mb:.1f} MB, fp16={args.fp16})")
+        return 0
+
+    from lofop.deploy import export_onnx
+
     path = export_onnx(
         model, args.output, image_size=args.size, opset=args.opset,
         verify=not args.no_verify,

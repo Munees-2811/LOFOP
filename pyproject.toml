@@ -43,6 +43,10 @@ deploy = [
     "onnx>=1.15",
     "onnxruntime>=1.17",
 ]
+tensorrt = [
+    "tensorrt>=8.6",
+    "numpy>=1.23",
+]
 
 [project.urls]
 Homepage = "https://github.com/tedo001/LOFOP"
