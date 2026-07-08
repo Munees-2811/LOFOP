@@ -11,6 +11,11 @@ Current commands::
     lofop dataset convert  --from coco --source ann.json --to yolo --target out/
     lofop dataset validate --format yolo --source dataset_root/
     lofop dataset stats    --format coco --source ann.json [-o stats.md]
+    lofop train            --config configs/train_shapes.yaml
+    lofop benchmark        --config configs/lofop-detect/n.yaml [...] [-o table.md]
+
+``train`` and ``benchmark`` need the ``lofop[models]`` extra (PyTorch); torch
+imports happen inside those handlers so every other command works without it.
 """
 
 from __future__ import annotations
@@ -58,6 +63,19 @@ def build_parser() -> argparse.ArgumentParser:
     stats.add_argument("--image-root", default=None, help="image directory (COCO sources)")
     stats.add_argument("-o", "--output", type=Path, default=None, help="write markdown report here")
     stats.add_argument("--json", action="store_true", help="print JSON instead of markdown")
+
+    train = commands.add_parser("train", help="train a detector from a training config")
+    train.add_argument("--config", required=True, help="training config YAML")
+    train.add_argument("--resume", action="store_true", help="resume from last.pt")
+
+    bench = commands.add_parser("benchmark", help="measure the LOFOP metric table for models")
+    bench.add_argument(
+        "--config", action="append", required=True,
+        help="model config YAML; repeat for multiple columns",
+    )
+    bench.add_argument("--size", type=int, default=640, help="benchmark image resolution")
+    bench.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
+    bench.add_argument("-o", "--output", type=Path, default=None, help="write the table here")
     return parser
 
 
@@ -99,6 +117,60 @@ def _cmd_stats(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_train(args: argparse.Namespace) -> int:
+    import lofop.models  # noqa: F401  (registers model components)
+    from lofop.core.config import Config
+    from lofop.registries import HUB
+    from lofop.training import DetectionTorchDataset, Trainer
+
+    cfg = Config.load(args.config)
+    model = HUB.build(cfg.model)
+    data = cfg.data
+    image_size = data.get("image_size", 640)
+    load_kwargs = {"image_root": data.image_root} if "image_root" in data else {}
+    train_ds = DetectionTorchDataset(
+        load_dataset(data.format, data.train_source, **load_kwargs),
+        image_size=image_size, augment=True,
+    )
+    val_ds = None
+    if "val_source" in data:
+        val_ds = DetectionTorchDataset(
+            load_dataset(data.format, data.val_source, **load_kwargs), image_size=image_size,
+        )
+    trainer = Trainer(model, train_ds, val_ds, **cfg.get("training", Config()).to_dict())
+    if args.resume:
+        trainer.resume()
+    metrics = trainer.fit()
+    if metrics is not None:
+        print(f"final: mAP50 {metrics.map50:.4f}, mAP50-95 {metrics.map50_95:.4f}")
+    return 0
+
+
+def _cmd_benchmark(args: argparse.Namespace) -> int:
+    import torch
+
+    import lofop.models  # noqa: F401  (registers model components)
+    from lofop.core.config import Config
+    from lofop.registries import HUB
+    from lofop.utils import benchmark_model, render_table
+
+    reports = []
+    for config_path in args.config:
+        cfg = Config.load(config_path)
+        model = HUB.build(cfg.model)
+        if args.checkpoint:
+            payload = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+            state = payload.get("ema", {}).get("module", payload.get("model", payload))
+            model.load_state_dict(state)
+        reports.append(benchmark_model(model, Path(config_path).stem, image_size=args.size))
+    table = render_table(reports)
+    print(table)
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(table, encoding="utf-8")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point; returns the process exit code."""
     args = build_parser().parse_args(argv)
@@ -106,8 +178,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "version":
         print(__version__)
         return 0
-    handlers = {"convert": _cmd_convert, "validate": _cmd_validate, "stats": _cmd_stats}
     try:
+        if args.command == "train":
+            return _cmd_train(args)
+        if args.command == "benchmark":
+            return _cmd_benchmark(args)
+        handlers = {"convert": _cmd_convert, "validate": _cmd_validate, "stats": _cmd_stats}
         return handlers[args.action](args)
     except LofopError as exc:
         print(f"error: {exc}", file=sys.stderr)

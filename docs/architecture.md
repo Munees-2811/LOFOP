@@ -31,11 +31,11 @@ and the build order. Module-level documents (e.g. [`core-engine.md`](core-engine
 | 2 | `lofop.data` | Canonical dataset model, COCO/YOLO/VOC adapters, converter, validator, statistics | **Done** |
 | 2b | `lofop.data` | Transforms, torch DataLoader integration, caching | Planned (with training) |
 | 3 | `lofop.models` | LOFOP-Detect: RidgeNet, DeltaFusion, ApexHead, losses, dynamic assignment | **Done** (see docs/lofop-detect.md) |
-| 4 | `lofop.training` | Trainer, evaluator, checkpointing, AMP, DDP, experiment tracking | Planned |
+| 4 | `lofop.training` | Trainer (AMP, EMA, cosine schedule, resume), COCO-protocol evaluator, checkpoints, torch data bridge | **Done** (DDP path present, not CI-exercised) |
 | 5 | `lofop.inference` | Image/video/stream predictors, batching, RTSP/webcam sources | Planned |
 | 6 | `lofop.deploy` | ONNX/TensorRT/OpenVINO/TorchScript export, REST serving, Docker images (**images done**) | In progress |
 | 7 | `lofop.cli` | `lofop` CLI (`dataset` tools done; `train`/`predict`/`export` planned) | In progress |
-| 8 | `lofop.utils` | Visualization, dataset statistics, benchmarking, profiling | Planned |
+| 8 | `lofop.utils` | Model benchmarking (metric table, FLOPs, FPS, size) done; visualization planned | In progress |
 | -- | `lofop.ops` | Native C++ box ops (IoU, NMS, class-aware NMS) with Python fallback | **Done** |
 
 Each phase lands with its own tests and docs before the next begins. Dependencies point downward
