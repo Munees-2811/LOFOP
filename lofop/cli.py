@@ -13,6 +13,7 @@ Current commands::
     lofop dataset stats    --format coco --source ann.json [-o stats.md]
     lofop train            --config configs/train_shapes.yaml
     lofop benchmark        --config configs/lofop-detect/n.yaml [...] [-o table.md]
+    lofop export           --config configs/lofop-detect/s.yaml --checkpoint best.pt -o model.onnx
 
 ``train`` and ``benchmark`` need the ``lofop[models]`` extra (PyTorch); torch
 imports happen inside those handlers so every other command works without it.
@@ -76,6 +77,14 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--size", type=int, default=640, help="benchmark image resolution")
     bench.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
     bench.add_argument("-o", "--output", type=Path, default=None, help="write the table here")
+
+    export = commands.add_parser("export", help="export a detector to ONNX")
+    export.add_argument("--config", required=True, help="model config YAML")
+    export.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
+    export.add_argument("--size", type=int, default=640, help="input resolution for the graph")
+    export.add_argument("--opset", type=int, default=18, help="ONNX opset version")
+    export.add_argument("--no-verify", action="store_true", help="skip onnxruntime verification")
+    export.add_argument("-o", "--output", type=Path, required=True, help="output .onnx path")
     return parser
 
 
@@ -171,6 +180,28 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_export(args: argparse.Namespace) -> int:
+    import torch
+
+    import lofop.models  # noqa: F401  (registers model components)
+    from lofop.core.config import Config
+    from lofop.deploy import export_onnx
+    from lofop.registries import HUB
+
+    cfg = Config.load(args.config)
+    model = HUB.build(cfg.model)
+    if args.checkpoint:
+        payload = torch.load(args.checkpoint, map_location="cpu", weights_only=True)
+        state = payload.get("ema", {}).get("module", payload.get("model", payload))
+        model.load_state_dict(state)
+    path = export_onnx(
+        model, args.output, image_size=args.size, opset=args.opset,
+        verify=not args.no_verify,
+    )
+    print(f"Exported {path} ({path.stat().st_size / 1e6:.1f} MB, verified={not args.no_verify})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point; returns the process exit code."""
     args = build_parser().parse_args(argv)
@@ -183,6 +214,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_train(args)
         if args.command == "benchmark":
             return _cmd_benchmark(args)
+        if args.command == "export":
+            return _cmd_export(args)
         handlers = {"convert": _cmd_convert, "validate": _cmd_validate, "stats": _cmd_stats}
         return handlers[args.action](args)
     except LofopError as exc:
