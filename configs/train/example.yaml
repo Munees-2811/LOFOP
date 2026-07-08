@@ -1,0 +1,32 @@
+# Example LOFOP training config.
+#
+# Copy this file, point the data.* paths at your dataset, set num_classes to
+# your dataset's class count, then run:
+#
+#     lofop train --config configs/train/example.yaml
+#
+# It inherits the LOFOP-Detect-s architecture; switch the `extends` target to
+# n.yaml for the nano variant. Only the fields below typically change.
+
+extends: [../lofop-detect/s.yaml]
+
+# Number of object categories in your dataset (feeds the detection head).
+num_classes: 80
+
+data:
+  format: coco                      # one of: coco | yolo | voc
+  train_source: /path/to/instances_train.json
+  val_source: /path/to/instances_val.json   # omit to train without evaluation
+  image_root: /path/to/images       # COCO only: directory holding the images
+  image_size: 640                   # square training resolution
+
+training:
+  epochs: 100
+  batch_size: 16
+  lr: 0.01
+  optimizer: SGD                    # SGD | AdamW
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  amp: true                         # mixed precision (effective on CUDA)
+  workers: 4                        # DataLoader workers; use 0 on Windows if unsure
+  checkpoint_dir: runs/train        # last.pt + best.pt land here

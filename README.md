@@ -10,6 +10,9 @@ LOFOP-Detect is designed against, never copied.
 > LOFOP-Detect models, training engine, and ONNX + TensorRT export. 196 tests passing. See
 > [`docs/architecture.md`](docs/architecture.md) for the full roadmap and per-phase status.
 
+📖 **New here? Read the [Operator's Manual](MANUAL.md)** — a complete, step-by-step guide to
+installing, training, exporting, deploying, and troubleshooting LOFOP.
+
 ## What works today
 
 - **Datasets** — COCO, YOLO, and VOC support through one canonical model: any-to-any conversion,
