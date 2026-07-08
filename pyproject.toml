@@ -36,6 +36,9 @@ dev = [
 rich = [
     "rich>=13.0",
 ]
+models = [
+    "torch>=2.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/tedo001/LOFOP"

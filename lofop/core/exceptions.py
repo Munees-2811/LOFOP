@@ -54,6 +54,10 @@ class DataError(LofopError):
     """Raised for invalid datasets, unreadable annotation files, or bad formats."""
 
 
+class ModelError(LofopError):
+    """Raised for invalid model configuration or incompatible component wiring."""
+
+
 class EventError(LofopError):
     """Raised when one or more event handlers fail and errors are not suppressed."""
 

@@ -30,7 +30,7 @@ and the build order. Module-level documents (e.g. [`core-engine.md`](core-engine
 | 1 | `lofop.registries` | Default hub + standard component groups | **Done** |
 | 2 | `lofop.data` | Canonical dataset model, COCO/YOLO/VOC adapters, converter, validator, statistics | **Done** |
 | 2b | `lofop.data` | Transforms, torch DataLoader integration, caching | Planned (with training) |
-| 3 | `lofop.models` | Backbones, necks, heads, losses; the LOFOP detector family | Planned |
+| 3 | `lofop.models` | LOFOP-Detect: RidgeNet, DeltaFusion, ApexHead, losses, dynamic assignment | **Done** (see docs/lofop-detect.md) |
 | 4 | `lofop.training` | Trainer, evaluator, checkpointing, AMP, DDP, experiment tracking | Planned |
 | 5 | `lofop.inference` | Image/video/stream predictors, batching, RTSP/webcam sources | Planned |
 | 6 | `lofop.deploy` | ONNX/TensorRT/OpenVINO/TorchScript export, REST serving, Docker images (**images done**) | In progress |
