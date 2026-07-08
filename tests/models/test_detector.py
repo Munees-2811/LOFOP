@@ -48,14 +48,36 @@ class TestLofopDetect:
         grads = [p.grad for p in model.parameters() if p.grad is not None]
         assert grads and any(g.abs().sum() > 0 for g in grads)
 
-    def test_empty_batch_has_cls_loss_only(self):
+    def test_empty_batch_supervises_background_quality(self):
         model = tiny_detector()
         images = torch.randn(1, 3, 64, 64)
         targets = [{"boxes": torch.zeros((0, 4)), "labels": torch.zeros((0,), dtype=torch.long)}]
         losses = model.compute_losses(images, targets)
         assert losses["cls"].item() > 0
         assert losses["box"].item() == 0.0
-        assert losses["quality"].item() == 0.0
+        # Quality is calibrated toward 0 on background even with no objects.
+        assert losses["quality"].item() > 0.0
+        assert torch.isfinite(losses["total"])
+
+    def test_quality_starts_low_on_background(self):
+        # The quality bias init keeps untrained background quality small, so
+        # the fused score sqrt(cls * quality) cannot inflate weak detections.
+        model = tiny_detector()
+        _, _, quality_out = model(torch.randn(1, 3, 64, 64))
+        for level in quality_out:
+            assert level.sigmoid().mean().item() < 0.2
+
+    def test_quality_loss_shrinks_as_background_calibrates(self):
+        # Push quality logits strongly negative (calibrated background): the
+        # modulated quality loss must be far below the fresh-init loss.
+        model = tiny_detector()
+        images = torch.randn(1, 3, 64, 64)
+        targets = [{"boxes": torch.zeros((0, 4)), "labels": torch.zeros((0,), dtype=torch.long)}]
+        fresh = model.compute_losses(images, targets)["quality"].item()
+        with torch.no_grad():
+            model.head.quality_pred.bias.fill_(-8.0)
+        calibrated = model.compute_losses(images, targets)["quality"].item()
+        assert calibrated < fresh * 0.05
 
     def test_predict_output_contract(self):
         model = tiny_detector().eval()
@@ -67,6 +89,20 @@ class TestLofopDetect:
             assert boxes.shape[0] <= model.max_detections
             if scores.numel() > 1:
                 assert (scores[:-1] >= scores[1:]).all()  # sorted by score
+
+    def test_optimize_for_inference_preserves_predictions(self):
+        torch.manual_seed(1)
+        model = tiny_detector().eval()
+        images = torch.randn(2, 3, 64, 64)
+        before = model.predict(images)
+        returned = model.optimize_for_inference()
+        assert returned is model and model._channels_last
+        after = model.predict(images)
+        assert len(before) == len(after)
+        for b, a in zip(before, after):
+            assert b["labels"].tolist() == a["labels"].tolist()
+            assert torch.allclose(b["boxes"], a["boxes"], atol=1e-4)
+            assert torch.allclose(b["scores"], a["scores"], atol=1e-5)
 
     def test_training_step_reduces_loss_on_fixed_batch(self):
         torch.manual_seed(0)

@@ -72,6 +72,10 @@ class ApexHead(nn.Module):
         # Focal-loss convention: bias classification logits so initial
         # foreground probability is ~1%, keeping early loss finite and stable.
         nn.init.constant_(self.cls_pred.bias, -4.595)
+        # Quality is supervised toward 0 on the (dominant) background, so
+        # start it low too; -2.0 (sigmoid ~0.12) balances easy background
+        # against positives whose IoU targets sit well above zero.
+        nn.init.constant_(self.quality_pred.bias, -2.0)
 
     def forward(self, features: list[Tensor]) -> tuple[list[Tensor], list[Tensor], list[Tensor]]:
         if len(features) != len(self.strides):
