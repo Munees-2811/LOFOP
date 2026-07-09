@@ -21,8 +21,11 @@ installing, training, exporting, deploying, and troubleshooting LOFOP.
   validation (degenerate/out-of-bounds boxes, missing files, dangling categories), and statistics.
 - **LOFOP-Detect** — an original anchor-free detector (RidgeNet backbone, DeltaFusion neck with
   attention only on the cheap stride-32 level, ApexHead with an IoU-quality branch, dynamic top-k
-  label assignment). Variants are pure config: `n` = 1.3M params, `s` = 3.8M.
+  label assignment). Variants are pure config: `n` = 1.3M params, `s` = 3.8M, `ex` = 20.1M.
   Design + trade-offs: [`docs/lofop-detect.md`](docs/lofop-detect.md).
+- **Python SDK** — `from lofop import Detector`: build, train, predict (boxes in original image
+  coordinates), evaluate, and export through one documented class. Full reference:
+  [`docs/sdk.md`](docs/sdk.md).
 - **Training** — AMP, EMA weights, warmup+cosine schedule, gradient clipping, atomic
   checkpointing with resume, event-bus lifecycle hooks, and a COCO-protocol evaluator
   (mAP@50, mAP@50:95, precision, recall).
@@ -78,9 +81,9 @@ lofop dataset stats    --format coco --source instances.json -o stats.md
 
 ```bash
 python examples/train_shapes.py --epochs 30 --workdir runs/shapes
-lofop benchmark --config configs/lofop-detect/n.yaml --config configs/lofop-detect/s.yaml -o table.md
-lofop export --config configs/lofop-detect/n.yaml --checkpoint runs/shapes/checkpoints/best.pt -o model.onnx
-lofop export --config configs/lofop-detect/n.yaml --format tensorrt --fp16 -o model.engine   # NVIDIA GPU
+lofop benchmark --config lofop/configs/lofop-detect/n.yaml --config lofop/configs/lofop-detect/s.yaml -o table.md
+lofop export --config lofop/configs/lofop-detect/n.yaml --checkpoint runs/shapes/checkpoints/best.pt -o model.onnx
+lofop export --config lofop/configs/lofop-detect/n.yaml --format tensorrt --fp16 -o model.engine   # NVIDIA GPU
 ```
 
 Measured on the fixed-protocol benchmark (`benchmarks/quality_benchmark.py`, 30 CPU epochs,
@@ -88,15 +91,27 @@ Measured on the fixed-protocol benchmark (`benchmarks/quality_benchmark.py`, 30 
 end-to-end predict. Accuracy on a real dataset awaits a full GPU training run — the protocol
 is documented in `docs/lofop-detect.md`, and the table renders `-` until numbers are measured.
 
-**SDK** — everything is a registry entry built from YAML:
+**Python SDK** — the one-import path ([full reference](docs/sdk.md)):
+
+```python
+from lofop import Detector
+
+det = Detector("lofop-detect-ex", num_classes=2, class_names=["cat", "dog"])
+det.train(data_format="coco", train_source="train.json", image_root="images/", epochs=100)
+for hit in det.predict("photo.jpg"):                  # boxes in original image coordinates
+    print(hit.boxes, hit.scores, hit.labels)
+det.export("model.onnx")
+```
+
+Lower-level control remains fully public — registries, `Config`, `Trainer`, and the deploy
+functions are the same objects the SDK uses:
 
 ```python
 from lofop import Config, HUB
 import lofop.models                                   # registers model components
 
-cfg = Config.load("configs/lofop-detect/s.yaml")
+cfg = Config.load("lofop/configs/lofop-detect/s.yaml")
 model = HUB.build(cfg.model)                          # ready LofopDetect
-detections = model.predict(images)                    # boxes/scores/labels per image
 ```
 
 Custom components plug in without touching the framework:
@@ -120,8 +135,10 @@ lofop/
   deploy/        # ONNX + TensorRT export, torch-free post-processing
   ops/ + csrc/   # native C++ IoU/NMS with Python fallback
   utils/         # model benchmarking (metric table, FLOPs, FPS)
+  sdk.py         # high-level Python SDK: the Detector class (docs/sdk.md)
+  configs/       # packaged model family definitions (n, s, ex)
   cli.py         # `lofop` command: dataset / train / benchmark / export
-configs/         # model family definitions (n, s) via config inheritance
+configs/         # training config examples
 docker/          # CPU, CUDA, and ONNX Runtime images
 docs/            # architecture, per-module references, LOFOP-Detect design doc
 benchmarks/      # reusable performance measurement scripts

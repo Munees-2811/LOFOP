@@ -132,10 +132,13 @@ Sizes are pure config -- same code, different widths/depths:
 
 | Variant | Backbone widths | Depths | Neck width | Params (measured) |
 |---|---|---|---|---|
-| `lofop-detect-n` | 32/64/128/256 | 1/1/2/1 | 64 | see `benchmarks/bench_detect.py` |
-| `lofop-detect-s` | 48/96/192/384 | 1/2/4/2 | 96 | see `benchmarks/bench_detect.py` |
+| `lofop-detect-n` | 32/64/128/256 | 1/1/2/1 | 64 | 1.3M |
+| `lofop-detect-s` | 48/96/192/384 | 1/2/4/2 | 96 | 3.8M |
+| `lofop-detect-ex` | 96/192/384/768 | 2/3/7/3 | 192 | 20.1M |
 
-Configs live in `configs/lofop-detect/` and build through the registry:
+Exact counts per class-count via `benchmarks/bench_detect.py`.
+
+Configs live in `lofop/configs/lofop-detect/` and build through the registry:
 `HUB.build(cfg.model)` returns a ready `LofopDetect`.
 
 ## 4. Pluggable alternative models

@@ -2,7 +2,7 @@
 
 Assembles a registered backbone, neck, and head; computes training losses via
 dynamic label assignment; decodes predictions through the native C++
-class-aware NMS. Everything is config-driven -- see configs/lofop-detect/.
+class-aware NMS. Everything is config-driven -- see lofop/configs/lofop-detect/.
 Design: docs/lofop-detect.md.
 """
 

@@ -52,7 +52,7 @@ def main(argv: list[str] | None = None) -> int:
         image_size=args.image_size, seed=4,
     )
 
-    cfg = Config.load(REPO_ROOT / "configs" / "lofop-detect" / "n.yaml", resolve=False)
+    cfg = Config.load(REPO_ROOT / "lofop" / "configs" / "lofop-detect" / "n.yaml", resolve=False)
     cfg.num_classes = len(train_raw.categories)
     cfg.resolve()
     model = HUB.build(cfg.model)

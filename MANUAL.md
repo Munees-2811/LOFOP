@@ -168,9 +168,9 @@ Produce the standard metric table (params, FLOPs, model size, CPU/GPU FPS) for o
 configs:
 
 ```bash
-lofop benchmark --config configs/lofop-detect/n.yaml --config configs/lofop-detect/s.yaml \
+lofop benchmark --config lofop/configs/lofop-detect/n.yaml --config lofop/configs/lofop-detect/s.yaml \
     --size 640 -o table.md
-lofop benchmark --config configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt
+lofop benchmark --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt
 ```
 
 Accuracy rows (mAP/precision/recall) require a trained checkpoint and an evaluation run; unmeasured
@@ -180,11 +180,11 @@ cells render as `-`.
 
 ```bash
 # ONNX (verified against the torch model by default):
-lofop export --config configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
     --size 640 -o model.onnx
 
 # TensorRT engine (NVIDIA GPU):
-lofop export --config configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
     --format tensorrt --fp16 -o model.engine
 ```
 
@@ -209,16 +209,17 @@ LOFOP experiments are plain YAML, instantiated through the registry. Files suppo
 
 ### Model variants
 
-The detector family lives in `configs/lofop-detect/`:
+The detector family lives in `lofop/configs/lofop-detect/`:
 
 | File | Variant | Params |
 |---|---|---|
 | `base.yaml` | shared settings (not used directly) | - |
 | `n.yaml` | nano (edge-first) | ~1.3M |
 | `s.yaml` | small (reference) | ~3.8M |
+| `ex.yaml` | extra (higher-accuracy GPU) | ~20.1M |
 
 Each variant only overrides widths/depths; the architecture is identical. Build one with
-`HUB.build(Config.load("configs/lofop-detect/s.yaml").model)`.
+`HUB.build(Config.load("lofop/configs/lofop-detect/s.yaml").model)`.
 
 ### Training config
 
@@ -226,7 +227,7 @@ See [`configs/train/example.yaml`](configs/train/example.yaml). It `extends` a m
 adds two blocks:
 
 ```yaml
-extends: [../lofop-detect/s.yaml]
+extends: [../../lofop/configs/lofop-detect/s.yaml]
 num_classes: 80                    # your dataset's class count
 
 data:
@@ -324,7 +325,7 @@ size, CPU/GPU FPS) are always measured; accuracy metrics fill in when a checkpoi
 are supplied, and show `-` otherwise so the table never displays numbers that were not measured.
 
 ```bash
-lofop benchmark --config configs/lofop-detect/n.yaml --config configs/lofop-detect/s.yaml -o table.md
+lofop benchmark --config lofop/configs/lofop-detect/n.yaml --config lofop/configs/lofop-detect/s.yaml -o table.md
 ```
 
 The evaluator implements the COCO protocol: greedy score-descending matching, 101-point
@@ -339,7 +340,7 @@ engine**, so ONNX Runtime and TensorRT share one verified graph and one post-pro
 ### 9.1 ONNX
 
 ```bash
-lofop export --config configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt -o model.onnx
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt -o model.onnx
 ```
 
 The graph contains the network **plus box decoding**; NMS stays outside (runtimes disagree on NMS
@@ -349,7 +350,7 @@ default.
 ### 9.2 TensorRT
 
 ```bash
-lofop export --config configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
     --format tensorrt --fp16 -o model.engine
 ```
 
@@ -413,13 +414,34 @@ call `build_native()`. Without a compiler you simply stay on the Python path —
 
 ## 11. Python SDK
 
-### 11.1 Build and run a model
+The high-level API is one class — full reference with every argument documented:
+[`docs/sdk.md`](docs/sdk.md).
+
+### 11.1 The Detector class
+
+```python
+from lofop import Detector
+
+det = Detector("lofop-detect-ex", num_classes=2, class_names=["cat", "dog"])
+det.train(data_format="coco", train_source="train.json",
+          val_source="val.json", image_root="images/", epochs=100)
+for hit in det.predict("photo.jpg"):        # boxes in ORIGINAL image coordinates
+    print(hit.boxes, hit.scores, hit.labels)
+det.export("model.onnx")                    # or .engine for TensorRT
+det.save("weights.pt")
+```
+
+Variant names: `lofop-detect-n` (1.3M) / `-s` (3.8M) / `-ex` (20.1M), with or without the
+prefix; also accepts a config YAML path, a config dict, or a prebuilt module. `checkpoint=`
+loads Trainer checkpoints (EMA weights win automatically).
+
+### 11.1b Build a model at the low level
 
 ```python
 import lofop.models                        # registers model components
 from lofop import Config, HUB
 
-cfg = Config.load("configs/lofop-detect/s.yaml")
+cfg = Config.load("lofop/configs/lofop-detect/s.yaml")
 model = HUB.build(cfg.model).eval()         # a LofopDetect
 results = model.predict(images)             # per image: {"boxes","scores","labels"}
 ```
@@ -443,7 +465,7 @@ from lofop import Config, HUB
 from lofop.data import load_dataset
 from lofop.training import DetectionTorchDataset, Trainer
 
-cfg = Config.load("configs/lofop-detect/s.yaml")
+cfg = Config.load("lofop/configs/lofop-detect/s.yaml")
 model = HUB.build(cfg.model)
 train = DetectionTorchDataset(load_dataset("coco", "train.json", image_root="imgs/"),
                               image_size=640, augment=True)

@@ -1,7 +1,7 @@
 """Benchmark LOFOP-Detect variants: parameters and forward latency.
 
 Measures what this machine can honestly measure -- model size and CPU forward
-latency at 640x640 -- for each config in configs/lofop-detect/. Accuracy (mAP)
+latency at 640x640 -- for each config in lofop/configs/lofop-detect/. Accuracy (mAP)
 requires a training run on GPU hardware and is deliberately absent here (see
 docs/lofop-detect.md).
 
@@ -28,7 +28,7 @@ import lofop.models  # noqa: E402, F401  (registers model components)
 from lofop.core.config import Config  # noqa: E402
 from lofop.registries import HUB  # noqa: E402
 
-_CONFIG_DIR = REPO_ROOT / "configs" / "lofop-detect"
+_CONFIG_DIR = REPO_ROOT / "lofop" / "configs" / "lofop-detect"
 
 
 def measure_variant(config_path: Path, size: int, repeats: int) -> tuple[str, int, float]:

@@ -37,6 +37,7 @@ and the build order. Module-level documents (e.g. [`core-engine.md`](core-engine
 | 7 | `lofop.cli` | `lofop` CLI (`dataset` tools done; `train`/`predict`/`export` planned) | In progress |
 | 8 | `lofop.utils` | Model benchmarking (metric table, FLOPs, FPS, size) done; visualization planned | In progress |
 | -- | CI / packaging | GitHub Actions CI (lint + tests + build) and PyPI/AUR packaging | **Done** |
+| -- | `lofop.sdk` | High-level Python SDK: the `Detector` class (build/train/predict/export) | **Done** (see docs/sdk.md) |
 | -- | `lofop.ops` | Cross-platform native C++ box ops (IoU, NMS) with Python fallback; MSVC/MinGW/g++/clang | **Done** |
 
 Each phase lands with its own tests and docs before the next begins. Dependencies point downward

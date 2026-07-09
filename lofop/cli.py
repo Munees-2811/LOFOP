@@ -12,8 +12,8 @@ Current commands::
     lofop dataset validate --format yolo --source dataset_root/
     lofop dataset stats    --format coco --source ann.json [-o stats.md]
     lofop train            --config configs/train_shapes.yaml
-    lofop benchmark        --config configs/lofop-detect/n.yaml [...] [-o table.md]
-    lofop export           --config configs/lofop-detect/s.yaml --checkpoint best.pt -o model.onnx
+    lofop benchmark        --config lofop/configs/lofop-detect/n.yaml [...] [-o table.md]
+    lofop export           --config lofop/configs/lofop-detect/s.yaml -o model.onnx
 
 ``train`` and ``benchmark`` need the ``lofop[models]`` extra (PyTorch); torch
 imports happen inside those handlers so every other command works without it.

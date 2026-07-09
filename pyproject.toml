@@ -70,7 +70,7 @@ Issues = "https://github.com/tedo001/LOFOP/issues"
 include = ["lofop*"]
 
 [tool.setuptools.package-data]
-lofop = ["csrc/*.cpp"]
+lofop = ["csrc/*.cpp", "configs/lofop-detect/*.yaml"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
