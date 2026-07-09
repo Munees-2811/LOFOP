@@ -1,0 +1,15 @@
+# LOFOP-Detect ex: the ~20M-parameter variant for higher-accuracy GPU
+# deployments. Same architecture as every other variant -- only widths,
+# depths, and tower depth change. Measured 20.1M parameters at 80 classes.
+extends: [base.yaml]
+
+model:
+  backbone:
+    widths: [96, 192, 384, 768]
+    depths: [2, 3, 7, 3]
+  neck:
+    in_channels: [192, 384, 768]
+    width: 192
+  head:
+    width: 192
+    num_convs: 3

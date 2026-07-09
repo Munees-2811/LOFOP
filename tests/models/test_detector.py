@@ -10,7 +10,7 @@ from lofop.core.config import Config  # noqa: E402
 from lofop.models import ApexHead, DeltaFusion, LofopDetect, RidgeNet  # noqa: E402
 from lofop.registries import HUB  # noqa: E402
 
-REPO_CONFIG = Path(__file__).resolve().parents[2] / "configs" / "lofop-detect" / "n.yaml"
+REPO_CONFIG = Path(__file__).resolve().parents[2] / "lofop" / "configs" / "lofop-detect" / "n.yaml"
 
 
 def tiny_detector(num_classes=5):

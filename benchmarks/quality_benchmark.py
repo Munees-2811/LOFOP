@@ -148,7 +148,7 @@ def run(epochs: int, image_size: int) -> dict:
             tmp_path / "val", num_images=32, image_size=image_size, seed=4
         )
         cfg = Config.load(
-            REPO_ROOT / "configs" / "lofop-detect" / "n.yaml", resolve=False
+            REPO_ROOT / "lofop" / "configs" / "lofop-detect" / "n.yaml", resolve=False
         )
         cfg.num_classes = len(train_raw.categories)
         cfg.resolve()

@@ -8,7 +8,7 @@
 # It inherits the LOFOP-Detect-s architecture; switch the `extends` target to
 # n.yaml for the nano variant. Only the fields below typically change.
 
-extends: [../lofop-detect/s.yaml]
+extends: [../../lofop/configs/lofop-detect/s.yaml]
 
 # Number of object categories in your dataset (feeds the detection head).
 num_classes: 80

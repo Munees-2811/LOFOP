@@ -18,4 +18,14 @@ __all__ = [
     "HUB",
     "EVENTS",
     "PLUGINS",
+    "Detector",
 ]
+
+
+def __getattr__(name: str):
+    # Lazy so `import lofop` stays torch-free; the SDK needs lofop[models].
+    if name == "Detector":
+        from lofop.sdk import Detector
+
+        return Detector
+    raise AttributeError(f"module 'lofop' has no attribute {name!r}")

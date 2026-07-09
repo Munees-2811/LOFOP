@@ -5,7 +5,7 @@
 ## ONNX export
 
 ```bash
-lofop export --config configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
     -o model.onnx --size 640
 ```
 
@@ -49,7 +49,7 @@ exactly the stack the `docker/Dockerfile-onnx` image ships.
 ## TensorRT export
 
 ```bash
-lofop export --config configs/lofop-detect/s.yaml --checkpoint best.pt \
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint best.pt \
     --format tensorrt --fp16 -o model.engine
 ```
 
