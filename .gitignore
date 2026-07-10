@@ -26,6 +26,7 @@ venv/
 runs/
 outputs/
 mlruns/
+benchmarks/results/
 *.log
 
 # Scratch

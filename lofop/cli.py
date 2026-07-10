@@ -92,6 +92,10 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--size", type=int, default=640, help="benchmark image resolution")
     bench.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
     bench.add_argument("-o", "--output", type=Path, default=None, help="write the table here")
+    bench.add_argument(
+        "--results-dir", type=Path, default=None,
+        help="write results.md, results.csv, and results.json to this directory",
+    )
 
     predict = commands.add_parser("predict", help="run detection on one or more images")
     predict.add_argument("--config", required=True, help="model config YAML or variant name")
@@ -215,7 +219,7 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
     import lofop.models  # noqa: F401  (registers model components)
     from lofop.core.config import Config
     from lofop.registries import HUB
-    from lofop.utils import benchmark_model, render_table
+    from lofop.utils import benchmark_model, render_table, write_reports
 
     reports = []
     for config_path in args.config:
@@ -231,6 +235,10 @@ def _cmd_benchmark(args: argparse.Namespace) -> int:
     if args.output:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(table, encoding="utf-8")
+    if args.results_dir:
+        written = write_reports(reports, args.results_dir)
+        paths = ", ".join(str(path) for path in written.values())
+        print(f"Wrote {paths}", file=sys.stderr)
     return 0
 
 

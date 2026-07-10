@@ -16,6 +16,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Training: config-driven learning-rate schedulers (`warmup_cosine`,
   `warmup_linear`, `constant`, `step`), opt-in early stopping
   (`patience`/`min_delta`), and an optional `TensorBoardHook`.
+- Benchmarking: CSV/JSON export (`render_csv`, `render_json`, `write_reports`)
+  and a peak-memory column; `lofop benchmark --results-dir` and a consolidated
+  `benchmarks/run_suite.py` runner.
 - Packaging: `tensorboard` optional-dependency extra; a version-sync check
   (`scripts/check_version_sync.py`) wired into CI.
 - Project: CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, issue/PR templates.

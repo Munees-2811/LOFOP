@@ -7,7 +7,14 @@ torch = pytest.importorskip("torch")
 from torch import nn  # noqa: E402
 
 from lofop.training.evaluator import DetectionMetrics  # noqa: E402
-from lofop.utils import benchmark_model, count_flops, render_table  # noqa: E402
+from lofop.utils import (  # noqa: E402
+    benchmark_model,
+    count_flops,
+    render_csv,
+    render_json,
+    render_table,
+    write_reports,
+)
 
 
 class TestFlops:
@@ -62,3 +69,38 @@ class TestReportAndTable:
         )
         assert "Reference (paper)" in table
         assert "20,000,000" in table
+
+
+class TestCsvJsonExport:
+    def make_report(self, accuracy=None):
+        model = nn.Sequential(nn.Conv2d(3, 4, 3, padding=1), nn.SiLU())
+        return benchmark_model(model, "tiny", image_size=16, accuracy=accuracy)
+
+    def test_record_is_flat_and_none_safe(self):
+        record = self.make_report().to_record()
+        assert record["name"] == "tiny" and record["parameters"] > 0
+        assert record["map50"] is None  # no accuracy supplied
+
+    def test_record_fills_accuracy(self):
+        metrics = DetectionMetrics(
+            map50=0.5, map50_95=0.3, precision=0.7, recall=0.6, per_class_ap50={}, f1=0.65
+        )
+        record = self.make_report(accuracy=metrics).to_record()
+        assert record["map50"] == 0.5 and record["f1"] == 0.65
+
+    def test_csv_has_header_and_row(self):
+        csv_text = render_csv([self.make_report()])
+        lines = csv_text.strip().splitlines()
+        assert lines[0].startswith("name,parameters,flops")
+        assert len(lines) == 2
+
+    def test_json_roundtrips(self):
+        import json
+
+        data = json.loads(render_json([self.make_report()]))
+        assert isinstance(data, list) and data[0]["name"] == "tiny"
+
+    def test_write_reports_creates_three_files(self, tmp_path):
+        written = write_reports([self.make_report()], tmp_path / "res")
+        assert set(written) == {"md", "csv", "json"}
+        assert all(path.is_file() for path in written.values())

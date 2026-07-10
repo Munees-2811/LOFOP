@@ -157,6 +157,7 @@ ruff check lofop tests benchmarks examples         # lint
 python benchmarks/bench_core.py -o report.md       # core engine micro-benchmarks
 python benchmarks/bench_ops.py                     # C++ vs Python ops speedups
 python benchmarks/bench_detect.py                  # detector params + latency
+python benchmarks/run_suite.py                     # full suite -> results.md/.csv/.json
 ```
 
 Every push and pull request runs the full test suite (Python 3.9/3.11/3.12, native C++ ops
