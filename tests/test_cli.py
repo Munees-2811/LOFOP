@@ -68,3 +68,47 @@ class TestDatasetCommands:
     def test_unknown_command_exits_with_usage(self):
         with pytest.raises(SystemExit):
             main(["dataset", "explode"])
+
+
+def test_doctor(capsys):
+    assert main(["doctor"]) == 0
+    out = capsys.readouterr().out
+    assert "LOFOP" in out and __version__ in out
+    assert "native ops:" in out
+
+
+class TestModelCommands:
+    """predict/evaluate need the models extra; skipped if torch is absent."""
+
+    def _image(self, tmp_path):
+        pytest.importorskip("torch")
+        from PIL import Image
+
+        path = tmp_path / "scene.png"
+        Image.new("RGB", (128, 96), color=(40, 90, 160)).save(path)
+        return path
+
+    def test_predict_json(self, tmp_path, capsys):
+        image = self._image(tmp_path)
+        out_file = tmp_path / "preds.json"
+        code = main([
+            "predict", "--config", "n", "--num-classes", "3",
+            "--source", str(image), "--size", "128", "--json", "-o", str(out_file),
+        ])
+        assert code == 0
+        payload = json.loads(out_file.read_text())
+        assert payload[0]["image"] == str(image)
+        assert {"boxes", "scores", "labels"} <= payload[0].keys()
+
+    def test_evaluate_json(self, coco_file, tmp_path, capsys):
+        pytest.importorskip("torch")
+        out_file = tmp_path / "metrics.json"
+        code = main([
+            "evaluate", "--config", "n", "--num-classes", "4",
+            "--format", "coco", "--source", str(coco_file),
+            "--image-root", str(coco_file.parent / "imgs"),
+            "--size", "128", "--json", "-o", str(out_file),
+        ])
+        assert code == 0
+        metrics = json.loads(out_file.read_text())
+        assert {"map50", "f1", "confusion_matrix", "per_class_precision"} <= metrics.keys()

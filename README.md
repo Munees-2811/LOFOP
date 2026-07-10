@@ -82,8 +82,11 @@ lofop dataset stats    --format coco --source instances.json -o stats.md
 ```bash
 python examples/train_shapes.py --epochs 30 --workdir runs/shapes
 lofop benchmark --config lofop/configs/lofop-detect/n.yaml --config lofop/configs/lofop-detect/s.yaml -o table.md
+lofop predict  --config n --checkpoint runs/shapes/checkpoints/best.pt --source image.png
+lofop evaluate --config n --checkpoint runs/shapes/checkpoints/best.pt --format coco --source val.json
 lofop export --config lofop/configs/lofop-detect/n.yaml --checkpoint runs/shapes/checkpoints/best.pt -o model.onnx
 lofop export --config lofop/configs/lofop-detect/n.yaml --format tensorrt --fp16 -o model.engine   # NVIDIA GPU
+lofop doctor   # environment + backend diagnostics
 ```
 
 Measured on the fixed-protocol benchmark (`benchmarks/quality_benchmark.py`, 30 CPU epochs,

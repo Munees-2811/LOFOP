@@ -11,7 +11,7 @@ reports (mAP@50, mAP@50:95, Precision, Recall).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import torch
 from torch import Tensor
@@ -30,7 +30,18 @@ class DetectionMetrics:
         map50_95: mAP averaged over IoU 0.50:0.95.
         precision: Micro precision at IoU 0.5 above the confidence threshold.
         recall: Micro recall at IoU 0.5 above the confidence threshold.
+        f1: Micro F1 (harmonic mean of ``precision`` and ``recall``).
         per_class_ap50: AP@50 for each class index that has ground truth.
+        per_class_precision: Precision per class at IoU 0.5.
+        per_class_recall: Recall per class at IoU 0.5.
+        confusion_classes: Class indices labelling the confusion matrix axes;
+            a trailing ``-1`` denotes the background (missed / spurious) row
+            and column.
+        confusion_matrix: ``(N+1) x (N+1)`` integer matrix where entry
+            ``[i][j]`` counts ground truths of ``confusion_classes[i]``
+            predicted as ``confusion_classes[j]``. The last row is false
+            positives (predicted, no matching GT); the last column is false
+            negatives (GT missed).
     """
 
     map50: float
@@ -38,6 +49,11 @@ class DetectionMetrics:
     precision: float
     recall: float
     per_class_ap50: dict[int, float]
+    f1: float = 0.0
+    per_class_precision: dict[int, float] = field(default_factory=dict)
+    per_class_recall: dict[int, float] = field(default_factory=dict)
+    confusion_classes: list[int] = field(default_factory=list)
+    confusion_matrix: list[list[int]] = field(default_factory=list)
 
 
 def evaluate_detections(
@@ -71,12 +87,23 @@ def evaluate_detections(
     ap50 = ap_per_threshold[0.5]
     map50 = sum(ap50.values()) / len(ap50) if ap50 else 0.0
     all_aps = [ap for by_class in ap_per_threshold.values() for ap in by_class.values()]
+    precision = tp / (tp + fp) if tp + fp else 0.0
+    recall = tp / num_gt if num_gt else 0.0
+    f1 = 2 * precision * recall / (precision + recall) if precision + recall else 0.0
+    per_class_precision, per_class_recall, confusion_classes, confusion_matrix = (
+        _confusion_and_per_class(predictions, targets, confidence_threshold, iou_threshold=0.5)
+    )
     return DetectionMetrics(
         map50=map50,
         map50_95=sum(all_aps) / len(all_aps) if all_aps else 0.0,
-        precision=tp / (tp + fp) if tp + fp else 0.0,
-        recall=tp / num_gt if num_gt else 0.0,
+        precision=precision,
+        recall=recall,
         per_class_ap50=ap50,
+        f1=f1,
+        per_class_precision=per_class_precision,
+        per_class_recall=per_class_recall,
+        confusion_classes=confusion_classes,
+        confusion_matrix=confusion_matrix,
     )
 
 
@@ -180,3 +207,65 @@ def _counts_at(
             tp += sum(hits)
             fp += len(hits) - sum(hits)
     return tp, fp, num_gt
+
+
+def _confusion_and_per_class(
+    predictions: list[dict[str, Tensor]],
+    targets: list[dict[str, Tensor]],
+    confidence_threshold: float,
+    iou_threshold: float,
+) -> tuple[dict[int, float], dict[int, float], list[int], list[list[int]]]:
+    """Cross-class confusion matrix and per-class precision/recall.
+
+    Confident detections are matched greedily (score-descending) to ground
+    truths by IoU, ignoring class, so a detection that overlaps a ground truth
+    of a different class is recorded as a misclassification rather than as an
+    independent false positive plus false negative. Unmatched detections land
+    in the background row; unmatched ground truths in the background column.
+    """
+    classes = sorted(
+        {int(c) for t in targets for c in t["labels"].tolist()}
+        | {int(c) for p in predictions for c in p["labels"].tolist()}
+    )
+    index_of = {c: i for i, c in enumerate(classes)}
+    background = len(classes)
+    matrix = [[0] * (background + 1) for _ in range(background + 1)]
+    for prediction, target in zip(predictions, targets):
+        keep = prediction["scores"] >= confidence_threshold
+        boxes = prediction["boxes"][keep]
+        scores = prediction["scores"][keep]
+        labels = prediction["labels"][keep]
+        order = torch.argsort(scores, descending=True)
+        boxes = boxes[order]
+        labels = labels[order].tolist()
+        gt_boxes = target["boxes"]
+        gt_labels = target["labels"].tolist()
+        ious = pairwise_iou(boxes, gt_boxes) if len(gt_boxes) and len(boxes) else None
+        matched_gt: set[int] = set()
+        for pred_index in range(len(boxes)):
+            best_iou, best_gt = iou_threshold, -1
+            if ious is not None:
+                for gt_index in range(len(gt_labels)):
+                    if gt_index in matched_gt:
+                        continue
+                    iou = float(ious[pred_index, gt_index])
+                    if iou >= best_iou:
+                        best_iou, best_gt = iou, gt_index
+            pred_class = index_of[int(labels[pred_index])]
+            if best_gt >= 0:
+                matched_gt.add(best_gt)
+                matrix[index_of[int(gt_labels[best_gt])]][pred_class] += 1
+            else:
+                matrix[background][pred_class] += 1
+        for gt_index in range(len(gt_labels)):
+            if gt_index not in matched_gt:
+                matrix[index_of[int(gt_labels[gt_index])]][background] += 1
+    per_class_precision: dict[int, float] = {}
+    per_class_recall: dict[int, float] = {}
+    for class_index, i in index_of.items():
+        hits = matrix[i][i]
+        predicted = sum(matrix[row][i] for row in range(background + 1))
+        actual = sum(matrix[i][col] for col in range(background + 1))
+        per_class_precision[class_index] = hits / predicted if predicted else 0.0
+        per_class_recall[class_index] = hits / actual if actual else 0.0
+    return per_class_precision, per_class_recall, classes + [-1], matrix

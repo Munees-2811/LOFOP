@@ -159,3 +159,64 @@ class TestEvaluator:
         }]
         metrics = evaluate_detections(predictions, self.targets())
         assert metrics.map50 == 0.0 and metrics.recall == 0.0
+
+    def test_f1_is_harmonic_mean(self):
+        predictions = [{
+            "boxes": torch.tensor([[10.0, 10.0, 50.0, 50.0]]),
+            "scores": torch.tensor([0.9]),
+            "labels": torch.tensor([0]),
+        }]
+        metrics = evaluate_detections(predictions, self.targets())
+        # precision 1.0, recall 0.5 -> F1 = 2/3.
+        assert metrics.f1 == pytest.approx(2 / 3)
+
+    def test_perfect_predictions_f1_one(self):
+        predictions = [{
+            "boxes": self.targets()[0]["boxes"].clone(),
+            "scores": torch.tensor([0.9, 0.8]),
+            "labels": torch.tensor([0, 1]),
+        }]
+        metrics = evaluate_detections(predictions, self.targets())
+        assert metrics.f1 == pytest.approx(1.0)
+
+    def test_per_class_precision_recall(self):
+        predictions = [{
+            "boxes": self.targets()[0]["boxes"].clone(),
+            "scores": torch.tensor([0.9, 0.8]),
+            "labels": torch.tensor([0, 1]),
+        }]
+        metrics = evaluate_detections(predictions, self.targets())
+        assert metrics.per_class_precision[0] == pytest.approx(1.0)
+        assert metrics.per_class_recall[1] == pytest.approx(1.0)
+
+    def test_confusion_matrix_records_misclassification(self):
+        # A box on the class-0 object is predicted as class 1: the confusion
+        # matrix must show a class-0 GT predicted as class 1 (not FP + FN).
+        predictions = [{
+            "boxes": torch.tensor([[10.0, 10.0, 50.0, 50.0]]),
+            "scores": torch.tensor([0.9]),
+            "labels": torch.tensor([1]),
+        }]
+        metrics = evaluate_detections(predictions, self.targets())
+        classes = metrics.confusion_classes
+        assert classes[-1] == -1  # background axis
+        gt0, pred1 = classes.index(0), classes.index(1)
+        assert metrics.confusion_matrix[gt0][pred1] == 1
+        background = len(classes) - 1
+        # The unmatched class-1 ground truth is a false negative.
+        assert metrics.confusion_matrix[classes.index(1)][background] == 1
+
+    def test_confusion_matrix_counts_false_positive(self):
+        predictions = [{
+            "boxes": torch.tensor([
+                [10.0, 10.0, 50.0, 50.0], [60.0, 60.0, 90.0, 90.0],
+                [200.0, 200.0, 250.0, 250.0],
+            ]),
+            "scores": torch.tensor([0.9, 0.8, 0.7]),
+            "labels": torch.tensor([0, 1, 0]),
+        }]
+        metrics = evaluate_detections(predictions, self.targets())
+        classes = metrics.confusion_classes
+        background = len(classes) - 1
+        # The spurious class-0 box overlaps no ground truth: a false positive.
+        assert metrics.confusion_matrix[background][classes.index(0)] == 1
