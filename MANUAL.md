@@ -300,6 +300,10 @@ training:
   optimizer: SGD                   # SGD | AdamW
   weight_decay: 0.0005
   warmup_epochs: 3
+  scheduler: warmup_cosine         # warmup_cosine | warmup_linear | constant | step
+  scheduler_kwargs: {min_factor: 0.05}
+  patience: 20                     # early stop after N epochs without improvement (omit to disable)
+  min_delta: 0.0
   amp: true
   workers: 4
   checkpoint_dir: runs/train
@@ -345,12 +349,18 @@ lofop dataset validate --format coco --source instances_train.json --image-root 
 - **Mixed precision (AMP)** on CUDA; automatic no-op on CPU.
 - **EMA weights** — evaluation and export use the exponential moving average, which scores higher
   than the raw weights.
-- **Warmup + cosine LR schedule** — linear warmup for `warmup_epochs`, then cosine decay to 5% of
-  peak.
+- **Config-driven LR schedule** — `scheduler:` selects `warmup_cosine` (default; linear warmup then
+  cosine decay to 5% of peak), `warmup_linear`, `constant`, or `step`; tune via `scheduler_kwargs`.
+  New schedules can be registered in the `scheduler` group.
+- **Early stopping** — set `patience` (epochs without a validation-metric gain beyond `min_delta`)
+  to stop a plateaued run and emit `train.early_stop`. Disabled when `patience` is omitted.
 - **Gradient clipping** at norm 10.
 - **Atomic checkpointing** with `--resume` support.
 - **Lifecycle events** on the LOFOP event bus (`train.start`, `train.epoch_end`, `eval.end`,
-  `checkpoint.saved`, `train.end`) — attach trackers/plugins without modifying the trainer.
+  `checkpoint.saved`, `train.end`, `train.early_stop`) — attach trackers/plugins without modifying
+  the trainer. **TensorBoard**: `from lofop.training import attach_tensorboard;
+  attach_tensorboard("runs/tb")` before `fit()` logs loss and metrics (needs the `tensorboard`
+  extra).
 
 ### 7.3 Resuming
 

@@ -31,6 +31,7 @@ from lofop.registries import EVENTS, OPTIMIZERS
 from lofop.training.checkpoint import CheckpointManager
 from lofop.training.ema import ModelEMA
 from lofop.training.evaluator import DetectionMetrics, evaluate_detections
+from lofop.training.schedulers import build_scheduler
 from lofop.training.torch_data import DetectionTorchDataset, detection_collate
 
 logger = get_logger(__name__)
@@ -63,9 +64,16 @@ class Trainer:
         optimizer: Name in the optimizer registry (``"SGD"``, ``"AdamW"``).
         weight_decay: L2 regularization.
         warmup_epochs: Linear warmup duration.
+        scheduler: Name in the scheduler registry (``"warmup_cosine"``,
+            ``"warmup_linear"``, ``"constant"``, ``"step"``).
+        scheduler_kwargs: Extra keyword arguments for the scheduler factory
+            (e.g. ``{"min_factor": 0.1}`` or ``{"milestones": [0.6, 0.9]}``).
         amp: Mixed precision (effective on CUDA; no-op on CPU).
         workers: DataLoader worker processes.
         checkpoint_dir: Where ``last.pt``/``best.pt`` are written.
+        patience: Stop early after this many epochs without validation-metric
+            improvement (``None`` disables early stopping).
+        min_delta: Minimum metric gain that counts as an improvement.
         events: Event bus (defaults to the framework bus).
         device: Compute device; auto-selects CUDA when available.
     """
@@ -82,9 +90,13 @@ class Trainer:
         optimizer: str = "SGD",
         weight_decay: float = 5e-4,
         warmup_epochs: float = 1.0,
+        scheduler: str = "warmup_cosine",
+        scheduler_kwargs: dict | None = None,
         amp: bool = True,
         workers: int = 2,
         checkpoint_dir: str | Path = "runs/train",
+        patience: int | None = None,
+        min_delta: float = 0.0,
         events: EventBus | None = None,
         device: str | None = None,
     ) -> None:
@@ -111,19 +123,19 @@ class Trainer:
             self._unwrapped.parameters(), lr=lr, weight_decay=weight_decay, **opt_kwargs
         )
         steps_per_epoch = max(len(self.train_loader), 1)
-        self.scheduler = torch.optim.lr_scheduler.LambdaLR(
-            self.optimizer,
-            lambda step: warmup_cosine_lr(
-                step,
-                warmup_steps=int(warmup_epochs * steps_per_epoch),
-                total_steps=epochs * steps_per_epoch,
-            ),
+        self.scheduler = build_scheduler(
+            scheduler, self.optimizer,
+            warmup_steps=int(warmup_epochs * steps_per_epoch),
+            total_steps=epochs * steps_per_epoch,
+            **(scheduler_kwargs or {}),
         )
         self.amp = amp and self.device.type == "cuda"
         self.scaler = torch.amp.GradScaler(enabled=self.amp)
         self.ema = ModelEMA(self._unwrapped)
         self.checkpoints = CheckpointManager(checkpoint_dir)
         self.start_epoch = 0
+        self.patience = patience
+        self.min_delta = min_delta
 
     @property
     def _unwrapped(self) -> nn.Module:
@@ -145,6 +157,8 @@ class Trainer:
         """Run the training loop; returns the final evaluation metrics."""
         self.events.emit("train.start", epochs=self.epochs, device=str(self.device))
         metrics: DetectionMetrics | None = None
+        best_value = -math.inf
+        epochs_without_gain = 0
         for epoch in range(self.start_epoch, self.epochs):
             if self.distributed:
                 self.train_loader.sampler.set_epoch(epoch)
@@ -161,6 +175,17 @@ class Trainer:
                 "train.epoch_end", epoch=epoch, loss=epoch_loss,
                 metrics=metrics.__dict__ if metrics else None,
             )
+            if metric_value > best_value + self.min_delta:
+                best_value, epochs_without_gain = metric_value, 0
+            else:
+                epochs_without_gain += 1
+            if self.patience is not None and epochs_without_gain >= self.patience:
+                logger.info(
+                    "Early stopping at epoch %d: no improvement for %d epochs",
+                    epoch, epochs_without_gain,
+                )
+                self.events.emit("train.early_stop", epoch=epoch, best=best_value)
+                break
         self.events.emit("train.end", metrics=metrics.__dict__ if metrics else None)
         return metrics
 
