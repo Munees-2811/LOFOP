@@ -58,6 +58,16 @@ class TestDatasetCommands:
         payload = json.loads(capsys.readouterr().out)
         assert payload["num_images"] == 2
 
+    def test_show_renders_images(self, coco_file, tmp_path, capsys):
+        out_dir = tmp_path / "vis"
+        code = main([
+            "dataset", "show", "--format", "coco", "--source", str(coco_file),
+            "--image-root", str(coco_file.parent / "imgs"), "-o", str(out_dir),
+        ])
+        assert code == 0
+        assert "Rendered" in capsys.readouterr().out
+        assert list(out_dir.glob("*.png"))
+
     def test_framework_errors_exit_2(self, tmp_path, capsys):
         code = main([
             "dataset", "stats", "--format", "coco", "--source", str(tmp_path / "nope.json"),
