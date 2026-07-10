@@ -11,6 +11,7 @@ Current commands::
     lofop dataset convert  --from coco --source ann.json --to yolo --target out/
     lofop dataset validate --format yolo --source dataset_root/
     lofop dataset stats    --format coco --source ann.json [-o stats.md]
+    lofop dataset show     --format coco --source ann.json -o vis/ [--limit 10]
     lofop train            --config configs/train_shapes.yaml
     lofop benchmark        --config lofop/configs/lofop-detect/n.yaml [...] [-o table.md]
     lofop predict          --config s --checkpoint best.pt --source a.jpg b.jpg
@@ -68,6 +69,16 @@ def build_parser() -> argparse.ArgumentParser:
     stats.add_argument("--image-root", default=None, help="image directory (COCO sources)")
     stats.add_argument("-o", "--output", type=Path, default=None, help="write markdown report here")
     stats.add_argument("--json", action="store_true", help="print JSON instead of markdown")
+
+    show = actions.add_parser("show", help="draw ground-truth boxes onto dataset images")
+    show.add_argument("--format", dest="format_name", required=True, help="format name")
+    show.add_argument("--source", required=True, help="source file or directory")
+    show.add_argument("--image-root", default=None, help="image directory (COCO sources)")
+    show.add_argument(
+        "-o", "--output", type=Path, required=True, help="directory to write rendered images",
+    )
+    show.add_argument("--limit", type=int, default=None, help="render at most this many samples")
+    show.add_argument("--width", type=int, default=3, help="box outline thickness in pixels")
 
     train = commands.add_parser("train", help="train a detector from a training config")
     train.add_argument("--config", required=True, help="training config YAML")
@@ -157,6 +168,15 @@ def _cmd_stats(args: argparse.Namespace) -> int:
         args.output.parent.mkdir(parents=True, exist_ok=True)
         args.output.write_text(result.to_markdown(), encoding="utf-8")
         print(f"Report written to {args.output}", file=sys.stderr)
+    return 0
+
+
+def _cmd_show(args: argparse.Namespace) -> int:
+    from lofop.data import visualize_dataset
+
+    dataset = load_dataset(args.format_name, args.source, **_load_kwargs(args))
+    paths = visualize_dataset(dataset, args.output, limit=args.limit, width=args.width)
+    print(f"Rendered {len(paths)} image(s) to {args.output}")
     return 0
 
 
@@ -358,7 +378,10 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_evaluate(args)
         if args.command == "doctor":
             return _cmd_doctor(args)
-        handlers = {"convert": _cmd_convert, "validate": _cmd_validate, "stats": _cmd_stats}
+        handlers = {
+            "convert": _cmd_convert, "validate": _cmd_validate,
+            "stats": _cmd_stats, "show": _cmd_show,
+        }
         return handlers[args.action](args)
     except LofopError as exc:
         print(f"error: {exc}", file=sys.stderr)
