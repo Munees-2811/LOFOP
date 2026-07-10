@@ -56,9 +56,12 @@ counts, boxes-per-image, COCO-convention small/medium/large breakdown, and image
 lofop dataset convert  --from coco --source instances.json --to yolo --target out/
 lofop dataset validate --format yolo --source dataset_root/          # exit 1 on errors
 lofop dataset stats    --format coco --source instances.json -o stats.md [--json]
+lofop dataset show     --format coco --source instances.json -o vis/ [--limit N]
 ```
 
-`--image-root` points COCO sources at their image directory so validation can check files.
+`--image-root` points COCO sources at their image directory so validation can check files (and
+`show` can load them). `show` writes one annotated PNG per sample; `lofop.data.draw_boxes` /
+`render_sample` / `visualize_dataset` expose the same rendering in code, Pillow-only and torch-free.
 
 ## Docker
 

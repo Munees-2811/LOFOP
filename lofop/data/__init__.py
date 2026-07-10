@@ -11,6 +11,7 @@ from lofop.data.formats import FORMATS, DatasetAdapter
 from lofop.data.manager import convert_dataset, get_adapter, load_dataset, save_dataset
 from lofop.data.statistics import DatasetStats, compute_stats
 from lofop.data.validator import Issue, Severity, ValidationReport, validate_dataset
+from lofop.data.visualize import draw_boxes, render_sample, visualize_dataset
 
 __all__ = [
     "BoxAnnotation",
@@ -29,4 +30,7 @@ __all__ = [
     "Severity",
     "compute_stats",
     "DatasetStats",
+    "draw_boxes",
+    "render_sample",
+    "visualize_dataset",
 ]

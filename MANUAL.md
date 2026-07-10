@@ -152,6 +152,17 @@ lofop dataset stats --format coco --source instances.json --json        # JSON
 Reports per-class counts, boxes-per-image, COCO small/medium/large size breakdown, and image-size
 distribution.
 
+**Visualize** (draw the ground-truth boxes onto the images):
+
+```bash
+lofop dataset show --format coco --source instances.json --image-root images/ -o vis/
+lofop dataset show --format yolo --source dataset_root/ -o vis/ --limit 20
+```
+
+Writes one PNG per sample (`<id>_<image>.png`) with each box outlined and captioned by class name;
+colors are stable per class. Pillow only, so it runs without the `models` extra. The same drawing
+primitive is available in code as `lofop.data.draw_boxes` for rendering predictions.
+
 ### 4.3 `lofop train`
 
 ```bash
