@@ -23,10 +23,14 @@ can be developed and tested without a GPU.
 Every change must pass the same checks CI runs:
 
 ```bash
-ruff check lofop tests benchmarks examples   # lint
-python -m pytest tests/ -q                    # tests
-python scripts/check_version_sync.py          # version consistency
+ruff check lofop tests benchmarks examples scripts   # lint
+python -m pytest tests/ -q                            # tests
+python -m pytest tests/ --cov --cov-report=term-missing  # tests + coverage
+python scripts/check_version_sync.py                  # version consistency
 ```
+
+Coverage is enforced in CI with a floor configured in `pyproject.toml`
+(`[tool.coverage.report] fail_under`); keep new code covered.
 
 - **Tests are required.** Every new module or behavior needs unit tests. Use
   the project test base (`from torch.testing._internal` is not used here; see

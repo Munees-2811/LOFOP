@@ -32,6 +32,7 @@ lofop = "lofop.cli:main"
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
+    "pytest-cov>=5.0",
     "ruff>=0.4",
     "build>=1.0",
     "twine>=5.0",
@@ -79,6 +80,21 @@ lofop = ["csrc/*.cpp", "configs/lofop-detect/*.yaml"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+
+[tool.coverage.run]
+source = ["lofop"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+# Hardware/optional paths that CI cannot exercise (TensorRT engines need an
+# NVIDIA GPU; some native-ops build branches are compiler/OS specific) keep the
+# reachable ceiling below 100, so the floor is set with headroom below the
+# measured ~90%.
+fail_under = 85
+omit = [
+    "lofop/deploy/tensorrt_export.py",
+]
 
 [tool.ruff]
 line-length = 100

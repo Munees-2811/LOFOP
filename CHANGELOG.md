@@ -21,6 +21,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `benchmarks/run_suite.py` runner.
 - Packaging: `tensorboard` optional-dependency extra; a version-sync check
   (`scripts/check_version_sync.py`) wired into CI.
+- Testing: `pytest-cov` with a CI-enforced coverage floor (~90% measured).
 - Project: CONTRIBUTING, SECURITY, CODE_OF_CONDUCT, issue/PR templates.
 
 ## [0.1.0]

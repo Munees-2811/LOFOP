@@ -29,5 +29,11 @@ mlruns/
 benchmarks/results/
 *.log
 
+# Coverage
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+
 # Scratch
 agent_space/
