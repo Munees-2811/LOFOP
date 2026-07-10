@@ -160,8 +160,14 @@ python benchmarks/bench_detect.py                  # detector params + latency
 ```
 
 Every push and pull request runs the full test suite (Python 3.9/3.11/3.12, native C++ ops
-built) and lint via GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), and a
-distribution build check, so `main` stays releasable.
+built), lint, a version-consistency check, and a distribution build check via GitHub Actions
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), so `main` stays releasable.
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the quality gates,
+[CHANGELOG.md](CHANGELOG.md) for release notes, and [SECURITY.md](SECURITY.md) for reporting
+vulnerabilities. Bug reports and feature requests use the issue templates.
 
 ## Roadmap
 
