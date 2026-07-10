@@ -7,11 +7,14 @@
 ```bash
 lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt \
     -o model.onnx --size 640
+lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint best.pt \
+    -o model.onnx --dynamic          # variable input sizes
 ```
 
 ```python
 from lofop.deploy import export_onnx
-export_onnx(model, "model.onnx", image_size=640)   # verifies via onnxruntime by default
+export_onnx(model, "model.onnx", image_size=640)                 # fixed resolution
+export_onnx(model, "model.onnx", image_size=640, dynamic=True)   # dynamic H/W/batch
 ```
 
 Design decisions:
@@ -19,8 +22,12 @@ Design decisions:
 - **The graph contains the network plus box decoding, not NMS.** Runtimes disagree on NMS
   operator support, and thresholds are deployment-time decisions. The graph outputs dense
   ``boxes (1, N, 4)`` and ``scores (1, N, C)``; post-processing finishes the job outside.
-- **Fixed input resolution.** Pyramid decode points are baked in for one size, which is what
-  TensorRT/OpenVINO engines want. Export once per deployed resolution.
+- **Fixed input resolution by default.** Pyramid decode points are baked in for one size, which is
+  what TensorRT/OpenVINO engines want. Export once per deployed resolution.
+- **Dynamic shapes on request.** `--dynamic` (or `dynamic=True`) exports symbolic batch/height/
+  width axes for servers that accept variable input sizes; each spatial dimension must be a
+  multiple of 32. The grid points are recomputed from the input shape at run time, and export is
+  verified at two resolutions so a graph that silently baked in one size cannot pass.
 - **Verification is on by default.** Export runs the graph under onnxruntime and compares
   against torch outputs; a checkpoint that exports but diverges numerically fails loudly
   instead of shipping.

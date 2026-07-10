@@ -19,6 +19,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Benchmarking: CSV/JSON export (`render_csv`, `render_json`, `write_reports`)
   and a peak-memory column; `lofop benchmark --results-dir` and a consolidated
   `benchmarks/run_suite.py` runner.
+- Deployment: dynamic-shape ONNX export (`export_onnx(..., dynamic=True)` /
+  `lofop export --dynamic`) with symbolic batch/height/width axes, verified at
+  two resolutions.
 - Packaging: `tensorboard` optional-dependency extra; a version-sync check
   (`scripts/check_version_sync.py`) wired into CI.
 - Testing: `pytest-cov` with a CI-enforced coverage floor (~90% measured).

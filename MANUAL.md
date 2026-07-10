@@ -208,6 +208,7 @@ lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/
 | `--format` | `onnx` (default) or `tensorrt` |
 | `--size` | input resolution baked into the graph |
 | `--opset` | ONNX opset (default 18) |
+| `--dynamic` | ONNX: symbolic batch/height/width axes for variable input sizes (multiples of 32) |
 | `--no-verify` | skip the onnxruntime verification step |
 | `--fp16` | TensorRT: enable FP16 kernels |
 | `--checkpoint` | load weights (EMA weights are used automatically if present) |

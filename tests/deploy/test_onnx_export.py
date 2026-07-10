@@ -61,6 +61,19 @@ class TestExport:
                 torch.randn(1, 3, IMAGE_SIZE, IMAGE_SIZE), tolerance=-1.0,
             )
 
+    def test_dynamic_export_runs_at_unseen_sizes(self, model, tmp_path):
+        # Dynamic export is verified internally at two sizes; here we also run
+        # a third, unseen resolution and assert the point count tracks it.
+        path = tmp_path / "dynamic.onnx"
+        export_onnx(model, path, image_size=IMAGE_SIZE, dynamic=True, verify=True)
+        session = onnxruntime.InferenceSession(
+            str(path), providers=["CPUExecutionProvider"]
+        )
+        small, _ = session.run(None, {"images": torch.randn(1, 3, 96, 96).numpy()})
+        large, _ = session.run(None, {"images": torch.randn(1, 3, 128, 160).numpy()})
+        assert small.shape[1] < large.shape[1]  # more locations at higher resolution
+        assert small.shape[2] == 4 and large.shape[2] == 4
+
 
 class TestPostprocess:
     def test_thresholds_and_nms(self):

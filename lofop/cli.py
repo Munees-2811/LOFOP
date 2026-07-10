@@ -131,6 +131,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export.add_argument("--size", type=int, default=640, help="input resolution for the graph")
     export.add_argument("--opset", type=int, default=18, help="ONNX opset version")
+    export.add_argument(
+        "--dynamic", action="store_true",
+        help="ONNX: symbolic batch/height/width axes for variable input sizes",
+    )
     export.add_argument("--no-verify", action="store_true", help="skip onnxruntime verification")
     export.add_argument("--fp16", action="store_true", help="TensorRT: enable FP16 kernels")
     export.add_argument("-o", "--output", type=Path, required=True, help="output path")
@@ -268,9 +272,12 @@ def _cmd_export(args: argparse.Namespace) -> int:
 
     path = export_onnx(
         model, args.output, image_size=args.size, opset=args.opset,
-        verify=not args.no_verify,
+        dynamic=args.dynamic, verify=not args.no_verify,
     )
-    print(f"Exported {path} ({path.stat().st_size / 1e6:.1f} MB, verified={not args.no_verify})")
+    print(
+        f"Exported {path} ({path.stat().st_size / 1e6:.1f} MB, "
+        f"dynamic={args.dynamic}, verified={not args.no_verify})"
+    )
     return 0
 
 
