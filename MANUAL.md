@@ -197,6 +197,51 @@ lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/
 | `--fp16` | TensorRT: enable FP16 kernels |
 | `--checkpoint` | load weights (EMA weights are used automatically if present) |
 
+### 4.6 `lofop predict`
+
+Run detection on one or more images. Boxes come back in the original image
+coordinates. Accepts a variant name (`n`/`s`/`ex`) or a config path for
+`--config`.
+
+```bash
+lofop predict --config s --checkpoint runs/train/best.pt \
+    --source photo1.jpg photo2.jpg --score-threshold 0.3
+lofop predict --config s --checkpoint runs/train/best.pt \
+    --source photo.jpg --json -o detections.json
+```
+
+| Flag | Meaning |
+|---|---|
+| `--source` | one or more image paths |
+| `--num-classes` | classes the head predicts (default 80) |
+| `--size` | inference resolution (default 640) |
+| `--score-threshold` | override the confidence cut for this run |
+| `--json` / `-o` | print JSON / also write it to a file |
+
+### 4.7 `lofop evaluate`
+
+COCO-protocol evaluation on a dataset. Prints mAP@50, mAP@50:95, precision,
+recall and F1; the JSON form additionally carries per-class precision/recall
+and the confusion matrix.
+
+```bash
+lofop evaluate --config s --checkpoint runs/train/best.pt \
+    --format coco --source instances_val.json --image-root images/
+lofop evaluate --config s --checkpoint best.pt \
+    --format yolo --source dataset_root/ --json -o metrics.json
+```
+
+### 4.8 `lofop doctor`
+
+Print the environment LOFOP sees: version, Python/OS, the active box-ops
+backend (native C++ or pure Python), and which optional dependencies (torch,
+onnx, onnxruntime, tensorrt, ...) are installed. Runs without the `models`
+extra, so it is the first command to reach for when diagnosing an install.
+
+```bash
+lofop doctor
+```
+
 ## 5. Configuration system
 
 LOFOP experiments are plain YAML, instantiated through the registry. Files support:
@@ -329,8 +374,11 @@ lofop benchmark --config lofop/configs/lofop-detect/n.yaml --config lofop/config
 ```
 
 The evaluator implements the COCO protocol: greedy score-descending matching, 101-point
-interpolated AP, mAP@50:95, and micro precision/recall. Use it directly via
-`lofop.training.evaluate_detections` (section 11).
+interpolated AP, mAP@50:95, and micro precision/recall. It also returns F1 (the harmonic mean
+of the micro precision/recall), per-class precision/recall, and a class confusion matrix
+(cross-class matching, with a trailing background row/column for spurious detections and missed
+ground truths). Use it directly via `lofop.training.evaluate_detections` (section 11), or through
+`lofop evaluate` for a dataset on disk.
 
 ## 9. Export and deployment
 
