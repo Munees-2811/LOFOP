@@ -13,10 +13,14 @@ Current commands::
     lofop dataset stats    --format coco --source ann.json [-o stats.md]
     lofop train            --config configs/train_shapes.yaml
     lofop benchmark        --config lofop/configs/lofop-detect/n.yaml [...] [-o table.md]
+    lofop predict          --config s --checkpoint best.pt --source a.jpg b.jpg
+    lofop evaluate         --config s --checkpoint best.pt --format coco --source val.json
     lofop export           --config lofop/configs/lofop-detect/s.yaml -o model.onnx
+    lofop doctor
 
-``train`` and ``benchmark`` need the ``lofop[models]`` extra (PyTorch); torch
-imports happen inside those handlers so every other command works without it.
+``train``, ``benchmark``, ``predict``, and ``evaluate`` need the
+``lofop[models]`` extra (PyTorch); torch imports happen inside those handlers
+so every other command (including ``doctor``) works without it.
 """
 
 from __future__ import annotations
@@ -77,6 +81,32 @@ def build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--size", type=int, default=640, help="benchmark image resolution")
     bench.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
     bench.add_argument("-o", "--output", type=Path, default=None, help="write the table here")
+
+    predict = commands.add_parser("predict", help="run detection on one or more images")
+    predict.add_argument("--config", required=True, help="model config YAML or variant name")
+    predict.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
+    predict.add_argument("--num-classes", type=int, default=80, help="number of object classes")
+    predict.add_argument("--source", nargs="+", required=True, help="image path(s) to run on")
+    predict.add_argument("--size", type=int, default=640, help="inference resolution")
+    predict.add_argument(
+        "--score-threshold", type=float, default=None, help="confidence cut for this run",
+    )
+    predict.add_argument("--json", action="store_true", help="print JSON instead of text")
+    predict.add_argument("-o", "--output", type=Path, default=None, help="write JSON results here")
+
+    evaluate = commands.add_parser("evaluate", help="evaluate a detector on a dataset")
+    evaluate.add_argument("--config", required=True, help="model config YAML or variant name")
+    evaluate.add_argument("--checkpoint", default=None, help="weights (best.pt/last.pt) to load")
+    evaluate.add_argument("--num-classes", type=int, default=80, help="number of object classes")
+    evaluate.add_argument("--format", dest="format_name", required=True, help="dataset format name")
+    evaluate.add_argument("--source", required=True, help="dataset file or directory")
+    evaluate.add_argument("--image-root", default=None, help="image directory (COCO sources)")
+    evaluate.add_argument("--size", type=int, default=640, help="evaluation resolution")
+    evaluate.add_argument("--batch-size", type=int, default=8, help="evaluation batch size")
+    evaluate.add_argument("--json", action="store_true", help="print JSON instead of text")
+    evaluate.add_argument("-o", "--output", type=Path, default=None, help="write JSON metrics here")
+
+    commands.add_parser("doctor", help="report the LOFOP environment and available backends")
 
     export = commands.add_parser("export", help="export a detector to ONNX or TensorRT")
     export.add_argument("--config", required=True, help="model config YAML")
@@ -216,6 +246,98 @@ def _cmd_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_predict(args: argparse.Namespace) -> int:
+    from lofop import Detector
+
+    detector = Detector(
+        args.config, num_classes=args.num_classes, checkpoint=args.checkpoint,
+        image_size=args.size,
+    )
+    results = detector.predict(args.source, score_threshold=args.score_threshold)
+    payload = []
+    for path, detections in zip(args.source, results):
+        payload.append({
+            "image": str(path),
+            "boxes": detections.boxes,
+            "scores": detections.scores,
+            "labels": detections.labels,
+        })
+    if args.json:
+        print(json.dumps(payload, indent=2))
+    else:
+        for item in payload:
+            print(f"{item['image']}: {len(item['boxes'])} detection(s)")
+            for box, score, label in zip(item["boxes"], item["scores"], item["labels"]):
+                name = detector.class_names[label]
+                coords = ", ".join(f"{value:.1f}" for value in box)
+                print(f"  {name} ({score:.3f}) [{coords}]")
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        print(f"Results written to {args.output}", file=sys.stderr)
+    return 0
+
+
+def _cmd_evaluate(args: argparse.Namespace) -> int:
+    from lofop import Detector
+
+    detector = Detector(
+        args.config, num_classes=args.num_classes, checkpoint=args.checkpoint,
+        image_size=args.size,
+    )
+    dataset = load_dataset(args.format_name, args.source, **_load_kwargs(args))
+    metrics = detector.evaluate(dataset, batch_size=args.batch_size)
+    result = {
+        "map50": metrics.map50,
+        "map50_95": metrics.map50_95,
+        "precision": metrics.precision,
+        "recall": metrics.recall,
+        "f1": metrics.f1,
+        "per_class_ap50": metrics.per_class_ap50,
+        "per_class_precision": metrics.per_class_precision,
+        "per_class_recall": metrics.per_class_recall,
+        "confusion_classes": metrics.confusion_classes,
+        "confusion_matrix": metrics.confusion_matrix,
+    }
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print(f"mAP@50    : {metrics.map50:.4f}")
+        print(f"mAP@50:95 : {metrics.map50_95:.4f}")
+        print(f"precision : {metrics.precision:.4f}")
+        print(f"recall    : {metrics.recall:.4f}")
+        print(f"F1        : {metrics.f1:.4f}")
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(json.dumps(result, indent=2), encoding="utf-8")
+        print(f"Metrics written to {args.output}", file=sys.stderr)
+    return 0
+
+
+def _cmd_doctor(args: argparse.Namespace) -> int:
+    import importlib.util
+    import platform
+
+    from lofop.ops.native import backend, find_library
+
+    print(f"LOFOP {__version__}")
+    print(f"Python {platform.python_version()} ({platform.system()} {platform.machine()})")
+    library = find_library()
+    print(f"native ops: {backend()}" + (f" ({library})" if library else " (not built)"))
+    optional = ["torch", "onnx", "onnxruntime", "tensorrt", "PIL", "yaml", "rich"]
+    print("optional dependencies:")
+    for name in optional:
+        found = importlib.util.find_spec(name) is not None
+        print(f"  {name:<12}: {'available' if found else 'missing'}")
+    if importlib.util.find_spec("torch") is not None:
+        import torch
+
+        cuda = torch.cuda.is_available()
+        device = torch.cuda.get_device_name(0) if cuda else "cpu only"
+        print(f"torch {torch.__version__}: CUDA {'yes' if cuda else 'no'} ({device})")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point; returns the process exit code."""
     args = build_parser().parse_args(argv)
@@ -230,6 +352,12 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_benchmark(args)
         if args.command == "export":
             return _cmd_export(args)
+        if args.command == "predict":
+            return _cmd_predict(args)
+        if args.command == "evaluate":
+            return _cmd_evaluate(args)
+        if args.command == "doctor":
+            return _cmd_doctor(args)
         handlers = {"convert": _cmd_convert, "validate": _cmd_validate, "stats": _cmd_stats}
         return handlers[args.action](args)
     except LofopError as exc:
