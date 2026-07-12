@@ -157,11 +157,18 @@ ruff check lofop tests benchmarks examples         # lint
 python benchmarks/bench_core.py -o report.md       # core engine micro-benchmarks
 python benchmarks/bench_ops.py                     # C++ vs Python ops speedups
 python benchmarks/bench_detect.py                  # detector params + latency
+python benchmarks/run_suite.py                     # full suite -> results.md/.csv/.json
 ```
 
 Every push and pull request runs the full test suite (Python 3.9/3.11/3.12, native C++ ops
-built) and lint via GitHub Actions ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), and a
-distribution build check, so `main` stays releasable.
+built), lint, a version-consistency check, and a distribution build check via GitHub Actions
+([`.github/workflows/ci.yml`](.github/workflows/ci.yml)), so `main` stays releasable.
+
+## Contributing
+
+Contributions are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md) for setup and the quality gates,
+[CHANGELOG.md](CHANGELOG.md) for release notes, and [SECURITY.md](SECURITY.md) for reporting
+vulnerabilities. Bug reports and feature requests use the issue templates.
 
 ## Roadmap
 

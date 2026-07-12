@@ -28,7 +28,9 @@ jobs:
       - name: Install ruff
         run: python -m pip install "ruff>=0.4"
       - name: Lint
-        run: ruff check lofop tests benchmarks examples
+        run: ruff check lofop tests benchmarks examples scripts
+      - name: Check version consistency
+        run: python scripts/check_version_sync.py
 
   test:
     runs-on: ubuntu-latest
@@ -50,6 +52,23 @@ jobs:
         run: python -c "from lofop.ops import build_native, backend; build_native(); print('ops backend:', backend())"
       - name: Run tests
         run: python -m pytest tests/ -q
+
+  coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install CPU PyTorch
+        run: python -m pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - name: Install LOFOP with test extras
+        run: python -m pip install -e ".[dev,models,deploy]"
+      - name: Build native C++ ops
+        run: python -c "from lofop.ops import build_native; build_native()"
+      - name: Run tests with coverage (fails under the configured floor)
+        run: python -m pytest tests/ --cov --cov-report=term-missing
 
   package:
     runs-on: ubuntu-latest

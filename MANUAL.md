@@ -182,10 +182,14 @@ configs:
 lofop benchmark --config lofop/configs/lofop-detect/n.yaml --config lofop/configs/lofop-detect/s.yaml \
     --size 640 -o table.md
 lofop benchmark --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/best.pt
+lofop benchmark --config lofop/configs/lofop-detect/n.yaml --results-dir benchmarks/results
 ```
 
 Accuracy rows (mAP/precision/recall) require a trained checkpoint and an evaluation run; unmeasured
-cells render as `-`.
+cells render as `-`. `--results-dir` additionally writes `results.md`, `results.csv`, and
+`results.json` (params, FLOPs, size, CPU/GPU FPS, peak memory, and any accuracy) so a run is both
+human- and machine-readable. The full variant sweep is `python benchmarks/run_suite.py`
+(add `--isolated` for clean per-model peak memory).
 
 ### 4.5 `lofop export`
 
@@ -204,6 +208,7 @@ lofop export --config lofop/configs/lofop-detect/s.yaml --checkpoint runs/train/
 | `--format` | `onnx` (default) or `tensorrt` |
 | `--size` | input resolution baked into the graph |
 | `--opset` | ONNX opset (default 18) |
+| `--dynamic` | ONNX: symbolic batch/height/width axes for variable input sizes (multiples of 32) |
 | `--no-verify` | skip the onnxruntime verification step |
 | `--fp16` | TensorRT: enable FP16 kernels |
 | `--checkpoint` | load weights (EMA weights are used automatically if present) |
