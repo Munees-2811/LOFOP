@@ -10,9 +10,9 @@ readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
 authors = [
-    { name = "DURGAMANI SASIKUMAR" }
+    { name = "DURGAMANI SASIKUMAR" },
+    { name = "Nishanandhini A. (Assistant Professor)" },
 ]
-Co-aurthors=[{ name = "Nishanandhini A.(Assistant Professor)" }]
 maintainers = [{ name = "LOFOP Contributors" }]
 keywords = ["computer-vision", "deep-learning", "object-detection", "pytorch"]
 classifiers = [
