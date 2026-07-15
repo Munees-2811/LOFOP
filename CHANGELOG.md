@@ -6,7 +6,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-## [1.1.0] - 2026-07-15
+## [1.1.1] - 2026-07-15
 
 ### Added
 - CLI: `lofop predict` (image inference), `lofop evaluate` (dataset metrics),
@@ -43,6 +43,6 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Python SDK (`Detector`) and the `lofop` CLI.
 - Packaging for PyPI (wheel/sdist) and AUR; CI and release workflows.
 
-[Unreleased]: https://github.com/tedo001/LOFOP/compare/v1.1.0...HEAD
-[1.1.0]: https://github.com/tedo001/LOFOP/compare/v0.1.0...v1.1.0
+[Unreleased]: https://github.com/tedo001/LOFOP/compare/v1.1.1...HEAD
+[1.1.1]: https://github.com/tedo001/LOFOP/compare/v0.1.0...v1.1.1
 [0.1.0]: https://github.com/tedo001/LOFOP/releases/tag/v0.1.0
