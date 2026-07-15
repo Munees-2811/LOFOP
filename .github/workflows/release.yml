@@ -1,3 +1,4 @@
+
 name: release
 
 # Publishes the package to PyPI when a version tag (v*) is pushed, so
