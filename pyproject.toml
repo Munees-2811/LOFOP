@@ -4,12 +4,15 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "lofop"
-version = "0.0.8"
+version = "1.1.0"
 description = "LOFOP: a modular, enterprise-grade computer vision framework."
 readme = "README.md"
 requires-python = ">=3.9"
 license = { text = "Apache-2.0" }
-authors = [{ name = "DURGAMANI SASIKUMAR" }]
+authors = [
+    { name = "DURGAMANI SASIKUMAR" },
+    { name = "Nishanandhini A. (Assistant Professor)" },
+]
 maintainers = [{ name = "LOFOP Contributors" }]
 keywords = ["computer-vision", "deep-learning", "object-detection", "pytorch"]
 classifiers = [
