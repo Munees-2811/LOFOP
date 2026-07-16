@@ -4,7 +4,7 @@ A complete, practical guide to installing, running, training, exporting, and dep
 its flagship detector **LOFOP-Detect**. This is the hands-on manual; for architecture and design
 rationale see [`docs/architecture.md`](docs/architecture.md) and the per-module docs it links.
 
-- **Version:** 0.1.0
+- **Version:** 1.1.2
 - **Python:** 3.9+
 - **Platforms:** Linux, macOS, Windows
 
@@ -56,7 +56,8 @@ Add optional feature sets with pip extras:
 pip install "lofop[models]"     # + PyTorch, for lofop.models / lofop.training
 pip install "lofop[deploy]"     # + onnx, onnxruntime, for ONNX export
 pip install "lofop[tensorrt]"   # + tensorrt, numpy (NVIDIA GPU machines only)
-pip install "lofop[all]"        # models + deploy
+pip install "lofop[tensorboard]"   # + tensorboard, for the training hook
+pip install "lofop[all]"        # models + deploy + tensorboard
 ```
 
 On the AUR the optional features are `optdepends` (`python-pytorch`, `python-onnx`,
@@ -84,8 +85,8 @@ Maintainers: release steps (PyPI + AUR) are in [`docs/packaging.md`](packaging.m
 ## 3. Verify your install
 
 ```bash
-lofop version                  # prints 0.1.0
-python -m pytest               # runs the test suite (196 passed, 2 skipped without a GPU)
+lofop version                  # prints 1.1.2
+python -m pytest               # runs the test suite (259 passed, 3 skipped without GPU/TensorBoard)
 ```
 
 Then run the self-contained demo — it generates its own data, trains LOFOP-Detect end to end, and
@@ -104,7 +105,7 @@ The `lofop` command is installed with the package. Global option: `--log-level D
 (or set the `LOFOP_LOG_LEVEL` environment variable).
 
 ```
-lofop {version, dataset, train, benchmark, export}
+lofop {version, dataset, train, benchmark, predict, evaluate, export, doctor}
 ```
 
 ### 4.1 `lofop version`

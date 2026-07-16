@@ -29,13 +29,13 @@ and the build order. Module-level documents (e.g. [`core-engine.md`](core-engine
 | 1 | `lofop.core` | Registry, Config, EventBus, PluginManager, logging, exceptions | **Done** |
 | 1 | `lofop.registries` | Default hub + standard component groups | **Done** |
 | 2 | `lofop.data` | Canonical dataset model, COCO/YOLO/VOC adapters, converter, validator, statistics | **Done** |
-| 2b | `lofop.data` | Transforms, torch DataLoader integration, caching | Planned (with training) |
+| 2b | `lofop.data` | Torch data bridge + augmentation (flip; opt-in mosaic + color jitter); letterboxing/caching planned | **Done** (letterbox planned) |
 | 3 | `lofop.models` | LOFOP-Detect: RidgeNet, DeltaFusion, ApexHead, losses, dynamic assignment | **Done** (see docs/lofop-detect.md) |
 | 4 | `lofop.training` | Trainer (AMP, EMA, cosine schedule, resume), COCO-protocol evaluator, checkpoints, torch data bridge | **Done** (DDP path present, not CI-exercised) |
 | 5 | `lofop.inference` | Image/video/stream predictors, batching, RTSP/webcam sources | Planned |
-| 6 | `lofop.deploy` | ONNX + TensorRT export and torch-free post-processing done; OpenVINO/REST planned | In progress (see docs/deploy.md) |
-| 7 | `lofop.cli` | `lofop` CLI (`dataset` tools done; `train`/`predict`/`export` planned) | In progress |
-| 8 | `lofop.utils` | Model benchmarking (metric table, FLOPs, FPS, size) done; visualization planned | In progress |
+| 6 | `lofop.deploy` | ONNX (fixed + dynamic shapes, verified) + TensorRT export, torch-free post-processing; OpenVINO/REST planned | **Done** (OpenVINO/REST planned) |
+| 7 | `lofop.cli` | `lofop` CLI: dataset (convert/validate/stats/show), train, benchmark, predict, evaluate, export, doctor | **Done** |
+| 8 | `lofop.utils` | Model benchmarking: metric table, FLOPs, FPS, size, CSV/JSON export; dataset visualization lives in `lofop.data` | **Done** |
 | -- | CI / packaging | GitHub Actions CI (lint + tests + build) and PyPI/AUR packaging | **Done** |
 | -- | `lofop.sdk` | High-level Python SDK: the `Detector` class (build/train/predict/export) | **Done** (see docs/sdk.md) |
 | -- | `lofop.ops` | Cross-platform native C++ box ops (IoU, NMS) with Python fallback; MSVC/MinGW/g++/clang | **Done** |

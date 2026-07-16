@@ -90,7 +90,8 @@ train = load_dataset("yolo", "dataset_root/")
 det.train(train_data=train, val_data=my_val, epochs=100)
 ```
 
-Common knobs are first-class (`epochs`, `batch_size`, `lr`, `checkpoint_dir`); everything else
+Common knobs are first-class (`epochs`, `batch_size`, `lr`, `checkpoint_dir`,
+`strong_augment=True` for the mosaic + color-jitter recipe); everything else
 passes through to `lofop.training.Trainer` (`optimizer="AdamW"`, `warmup_epochs`, `amp`,
 `workers`, ...). Training runs with AMP (on CUDA), EMA weights, warmup+cosine schedule, and
 atomic checkpoints; **the trained EMA weights replace the detector's weights** when `train()`
