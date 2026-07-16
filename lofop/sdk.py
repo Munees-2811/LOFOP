@@ -220,6 +220,7 @@ class Detector:
         batch_size: int = 16,
         lr: float = 0.01,
         checkpoint_dir: str | Path = "runs/train",
+        strong_augment: bool = False,
         **trainer_kwargs: Any,
     ):
         """Train this detector; the trained (EMA) weights replace the current ones.
@@ -228,6 +229,10 @@ class Detector:
         from :func:`lofop.data.load_dataset` or your own construction) OR as
         ``data_format`` + ``train_source`` (+ optional ``val_source`` /
         ``image_root``) to load from COCO/YOLO/VOC on disk.
+
+        ``strong_augment=True`` enables the richer augmentation recipe
+        (mosaic + color jitter on top of the default flip) -- recommended
+        for real-data training runs.
 
         Extra keyword arguments pass straight to
         :class:`~lofop.training.Trainer` (``optimizer``, ``warmup_epochs``,
@@ -249,7 +254,10 @@ class Detector:
             train_data = load_dataset(data_format, train_source, **kwargs)
             if val_source:
                 val_data = load_dataset(data_format, val_source, **kwargs)
-        train_ds = DetectionTorchDataset(train_data, image_size=self.image_size, augment=True)
+        train_ds = DetectionTorchDataset(
+            train_data, image_size=self.image_size, augment=True,
+            strong_augment=strong_augment,
+        )
         val_ds = (
             DetectionTorchDataset(val_data, image_size=self.image_size)
             if val_data is not None else None

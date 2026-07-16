@@ -6,6 +6,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Training: original strong-augmentation recipe (2x2 mosaic + color
+  jitter, tensor-native, no external augmentation library) behind an
+  opt-in `strong_augment` flag on `DetectionTorchDataset`,
+  `Detector.train`, and the training config (`data.strong_augment`).
+  Defaults unchanged: existing runs and benchmarks are unaffected.
+
 ## [1.1.2] - 2026-07-15
 
 ### Added

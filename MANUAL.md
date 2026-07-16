@@ -354,6 +354,10 @@ lofop dataset validate --format coco --source instances_train.json --image-root 
 - **Mixed precision (AMP)** on CUDA; automatic no-op on CPU.
 - **EMA weights** — evaluation and export use the exponential moving average, which scores higher
   than the raw weights.
+- **Augmentation** — horizontal flip by default; set `data.strong_augment: true`
+  (or `Detector.train(strong_augment=True)`) for the richer recipe: 2x2 mosaic
+  (four images combined, boxes remapped) plus brightness/contrast/saturation
+  jitter. Recommended for real-data training; off by default.
 - **Config-driven LR schedule** — `scheduler:` selects `warmup_cosine` (default; linear warmup then
   cosine decay to 5% of peak), `warmup_linear`, `constant`, or `step`; tune via `scheduler_kwargs`.
   New schedules can be registered in the `scheduler` group.
