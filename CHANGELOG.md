@@ -6,6 +6,20 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.1.3] - 2026-07-16
+
+### Added
+- MLOps: `lofop.mlops` local experiment tracking -- `with track(root):`
+  records every training run (settings, environment, per-epoch history,
+  best/final metrics, checkpoints) as plain JSON via the event bus, plus
+  `lofop runs list/show/compare` CLI. Torch-free registry; no trainer
+  changes; original implementation.
+- Training: original strong-augmentation recipe (2x2 mosaic + color
+  jitter, tensor-native, no external augmentation library) behind an
+  opt-in `strong_augment` flag on `DetectionTorchDataset`,
+  `Detector.train`, and the training config (`data.strong_augment`).
+  Defaults unchanged: existing runs and benchmarks are unaffected.
+
 ## [1.1.2] - 2026-07-15
 
 ### Added
@@ -43,6 +57,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Python SDK (`Detector`) and the `lofop` CLI.
 - Packaging for PyPI (wheel/sdist) and AUR; CI and release workflows.
 
-[Unreleased]: https://github.com/tedo001/LOFOP/compare/v1.1.2...HEAD
+[Unreleased]: https://github.com/tedo001/LOFOP/compare/v1.1.3...HEAD
+[1.1.3]: https://github.com/tedo001/LOFOP/compare/v1.1.2...v1.1.3
 [1.1.2]: https://github.com/tedo001/LOFOP/compare/v0.1.0...v1.1.2
 [0.1.0]: https://github.com/tedo001/LOFOP/releases/tag/v0.1.0

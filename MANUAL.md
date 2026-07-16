@@ -4,7 +4,7 @@ A complete, practical guide to installing, running, training, exporting, and dep
 its flagship detector **LOFOP-Detect**. This is the hands-on manual; for architecture and design
 rationale see [`docs/architecture.md`](docs/architecture.md) and the per-module docs it links.
 
-- **Version:** 0.1.0
+- **Version:** 1.1.2
 - **Python:** 3.9+
 - **Platforms:** Linux, macOS, Windows
 
@@ -56,7 +56,8 @@ Add optional feature sets with pip extras:
 pip install "lofop[models]"     # + PyTorch, for lofop.models / lofop.training
 pip install "lofop[deploy]"     # + onnx, onnxruntime, for ONNX export
 pip install "lofop[tensorrt]"   # + tensorrt, numpy (NVIDIA GPU machines only)
-pip install "lofop[all]"        # models + deploy
+pip install "lofop[tensorboard]"   # + tensorboard, for the training hook
+pip install "lofop[all]"        # models + deploy + tensorboard
 ```
 
 On the AUR the optional features are `optdepends` (`python-pytorch`, `python-onnx`,
@@ -84,8 +85,8 @@ Maintainers: release steps (PyPI + AUR) are in [`docs/packaging.md`](packaging.m
 ## 3. Verify your install
 
 ```bash
-lofop version                  # prints 0.1.0
-python -m pytest               # runs the test suite (196 passed, 2 skipped without a GPU)
+lofop version                  # prints 1.1.2
+python -m pytest               # runs the test suite (259 passed, 3 skipped without GPU/TensorBoard)
 ```
 
 Then run the self-contained demo — it generates its own data, trains LOFOP-Detect end to end, and
@@ -104,7 +105,7 @@ The `lofop` command is installed with the package. Global option: `--log-level D
 (or set the `LOFOP_LOG_LEVEL` environment variable).
 
 ```
-lofop {version, dataset, train, benchmark, export}
+lofop {version, dataset, train, benchmark, predict, evaluate, export, doctor, runs}
 ```
 
 ### 4.1 `lofop version`
@@ -354,6 +355,10 @@ lofop dataset validate --format coco --source instances_train.json --image-root 
 - **Mixed precision (AMP)** on CUDA; automatic no-op on CPU.
 - **EMA weights** — evaluation and export use the exponential moving average, which scores higher
   than the raw weights.
+- **Augmentation** — horizontal flip by default; set `data.strong_augment: true`
+  (or `Detector.train(strong_augment=True)`) for the richer recipe: 2x2 mosaic
+  (four images combined, boxes remapped) plus brightness/contrast/saturation
+  jitter. Recommended for real-data training; off by default.
 - **Config-driven LR schedule** — `scheduler:` selects `warmup_cosine` (default; linear warmup then
   cosine decay to 5% of peak), `warmup_linear`, `constant`, or `step`; tune via `scheduler_kwargs`.
   New schedules can be registered in the `scheduler` group.
@@ -388,6 +393,30 @@ The DDP path follows the standard recipe; validate on your cluster before long r
 ### 7.5 Programmatic training
 
 See [section 11.3](#113-train-in-python).
+
+### 7.5 Experiment tracking (`lofop.mlops`)
+
+Wrap any training call to record the run permanently -- settings, machine,
+per-epoch loss/mAP history, best epoch, final metrics, checkpoint paths:
+
+```python
+from lofop.mlops import track
+
+with track("runs/registry", name="person-v2", tags=["coco"], meta={"lr": 0.002}):
+    det.train(...)
+```
+
+Then from any machine (no PyTorch needed -- records are plain JSON):
+
+```bash
+lofop runs list --root runs/registry
+lofop runs show 20260715_183000 --root runs/registry
+lofop runs compare 20260715_183000 20260714_120000 --root runs/registry   # metric table
+```
+
+Tracking observes the standard training events, so it works with the SDK, the
+CLI, or any custom loop that emits them; a crashed run is recorded with
+`status: failed` instead of disappearing.
 
 ## 8. Evaluation and benchmarking
 

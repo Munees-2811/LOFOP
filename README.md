@@ -1,6 +1,7 @@
 # LOFOP
 
 [![ci](https://github.com/tedo001/LOFOP/actions/workflows/ci.yml/badge.svg)](https://github.com/tedo001/LOFOP/actions/workflows/ci.yml)
+[![PyPI](https://img.shields.io/pypi/v/lofop.svg)](https://pypi.org/project/lofop/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue.svg)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-Apache--2.0-green.svg)](LICENSE)
 
@@ -8,9 +9,12 @@
 original detector: **LOFOP-Detect**. It is an independent design and implementation that follows
 modern computer-vision engineering practices while remaining self-contained.
 
-> **Status:** Phases 1-5 complete — core engine, data subsystem, cross-platform native ops,
-> LOFOP-Detect models, training engine, and ONNX + TensorRT export. 196 tests passing. See
-> [`docs/architecture.md`](docs/architecture.md) for the full roadmap and per-phase status.
+> **Status:** published on [PyPI](https://pypi.org/project/lofop/) (`pip install lofop`).
+> Core engine, data subsystem (with visualization), cross-platform native ops, LOFOP-Detect
+> models, training engine (schedulers, early stopping, strong augmentation), full CLI,
+> Python SDK, and verified ONNX (fixed + dynamic shapes) / TensorRT export. 259 tests
+> passing with a coverage-gated CI. See [`docs/architecture.md`](docs/architecture.md)
+> for the subsystem map and [`CHANGELOG.md`](CHANGELOG.md) for release history.
 
 📖 **New here? Read the [Operator's Manual](MANUAL.md)** — a complete, step-by-step guide to
 installing, training, exporting, deploying, and troubleshooting LOFOP.
@@ -18,7 +22,8 @@ installing, training, exporting, deploying, and troubleshooting LOFOP.
 ## What works today
 
 - **Datasets** — COCO, YOLO, and VOC support through one canonical model: any-to-any conversion,
-  validation (degenerate/out-of-bounds boxes, missing files, dangling categories), and statistics.
+  validation (degenerate/out-of-bounds boxes, missing files, dangling categories), statistics,
+  and torch-free visualization (`lofop dataset show` / `lofop.data.draw_boxes`).
 - **LOFOP-Detect** — an original anchor-free detector (RidgeNet backbone, DeltaFusion neck with
   attention only on the cheap stride-32 level, ApexHead with an IoU-quality branch, dynamic top-k
   label assignment). Variants are pure config: `n` = 1.3M params, `s` = 3.8M, `ex` = 20.1M.
@@ -26,17 +31,24 @@ installing, training, exporting, deploying, and troubleshooting LOFOP.
 - **Python SDK** — `from lofop import Detector`: build, train, predict (boxes in original image
   coordinates), evaluate, and export through one documented class. Full reference:
   [`docs/sdk.md`](docs/sdk.md).
-- **Training** — AMP, EMA weights, warmup+cosine schedule, gradient clipping, atomic
-  checkpointing with resume, event-bus lifecycle hooks, and a COCO-protocol evaluator
-  (mAP@50, mAP@50:95, precision, recall).
+- **Training** — AMP, EMA weights, config-driven LR schedulers (`warmup_cosine`,
+  `warmup_linear`, `constant`, `step`), early stopping, an optional TensorBoard hook,
+  gradient clipping, atomic checkpointing with resume, an opt-in strong-augmentation recipe
+  (2x2 mosaic + color jitter, original tensor-native ops), and a COCO-protocol evaluator
+  (mAP@50, mAP@50:95, precision, recall, F1, per-class precision/recall, confusion matrix).
 - **Cross-platform native ops** — IoU and class-aware NMS kernels (20-200x over pure Python) with a
   verified-identical Python fallback, so a compiler is never required. The C++ path builds with
   g++/clang on Linux/macOS and MinGW/clang/MSVC on Windows; `lofop.ops.backend()` reports which is
   active.
 - **Benchmarking** — `lofop benchmark` renders the standard metric table (mAP, FPS, params,
-  FLOPs, model size) and never prints a number that was not actually measured.
+  FLOPs, model size) with optional CSV/JSON output (`--results-dir`), and never prints a
+  number that was not actually measured.
+- **Experiment tracking (MLOps)** — `with lofop.mlops.track("runs/registry"):` records every
+  training run (settings, environment, per-epoch history, best/final metrics) as plain JSON
+  through the event bus; inspect with `lofop runs list / show / compare`. Torch-free.
 - **ONNX + TensorRT export** — `lofop export` writes a numerically verified ONNX graph (network +
-  box decoding), or a TensorRT engine (`--format tensorrt --fp16`) via that same ONNX;
+  box decoding; `--dynamic` for variable input sizes, verified at two resolutions), or a
+  TensorRT engine (`--format tensorrt --fp16`) via that same ONNX;
   `postprocess_dense` finishes inference torch-free with the C++ NMS, so serving hosts need only a
   runtime + the LOFOP core. Details: [`docs/deploy.md`](docs/deploy.md).
 - **Deployment scaffolding** — CPU / CUDA / ONNX Runtime Docker images ([`docker/`](docker/README.md)).
@@ -53,7 +65,8 @@ Optional feature sets (extras):
 ```bash
 pip install "lofop[models]"      # + PyTorch, for lofop.models / lofop.training
 pip install "lofop[deploy]"      # + onnx, onnxruntime, for ONNX export
-pip install "lofop[all]"         # models + deploy in one go
+pip install "lofop[tensorboard]" # + tensorboard, for the training hook
+pip install "lofop[all]"         # models + deploy + tensorboard in one go
 python -c "from lofop.ops import build_native; build_native()"   # optional C++ fast path
 ```
 
@@ -75,6 +88,7 @@ attaches only to the model and training subsystems. Maintainer release steps liv
 lofop dataset convert  --from coco --source instances.json --to yolo --target out/
 lofop dataset validate --format yolo --source out/            # exit 1 on errors
 lofop dataset stats    --format coco --source instances.json -o stats.md
+lofop dataset show     --format coco --source instances.json -o vis/ --limit 10
 ```
 
 **Train and benchmark** (five-minute CPU demo that fills the metric table end to end):
@@ -172,8 +186,14 @@ vulnerabilities. Bug reports and feature requests use the issue templates.
 
 ## Roadmap
 
-Next phases: inference sources (video/RTSP/webcam), OpenVINO engines, and REST serving.
-The full subsystem map with per-phase status lives in [`docs/architecture.md`](docs/architecture.md).
+Ordered by expected return: published pretrained checkpoints (GPU training runs),
+quality-aware Soft-NMS in the native kernel, letterboxing, a torch-free tracking module,
+then inference sources (video/RTSP/webcam), OpenVINO engines, and REST serving. The full
+subsystem map with per-phase status lives in [`docs/architecture.md`](docs/architecture.md).
+
+## Authors
+
+DURGAMANI SASIKUMAR and Nishanandhini A. (Assistant Professor).
 
 ## License
 
