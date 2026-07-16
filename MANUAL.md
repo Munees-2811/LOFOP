@@ -105,7 +105,7 @@ The `lofop` command is installed with the package. Global option: `--log-level D
 (or set the `LOFOP_LOG_LEVEL` environment variable).
 
 ```
-lofop {version, dataset, train, benchmark, predict, evaluate, export, doctor}
+lofop {version, dataset, train, benchmark, predict, evaluate, export, doctor, runs}
 ```
 
 ### 4.1 `lofop version`
@@ -393,6 +393,30 @@ The DDP path follows the standard recipe; validate on your cluster before long r
 ### 7.5 Programmatic training
 
 See [section 11.3](#113-train-in-python).
+
+### 7.5 Experiment tracking (`lofop.mlops`)
+
+Wrap any training call to record the run permanently -- settings, machine,
+per-epoch loss/mAP history, best epoch, final metrics, checkpoint paths:
+
+```python
+from lofop.mlops import track
+
+with track("runs/registry", name="person-v2", tags=["coco"], meta={"lr": 0.002}):
+    det.train(...)
+```
+
+Then from any machine (no PyTorch needed -- records are plain JSON):
+
+```bash
+lofop runs list --root runs/registry
+lofop runs show 20260715_183000 --root runs/registry
+lofop runs compare 20260715_183000 20260714_120000 --root runs/registry   # metric table
+```
+
+Tracking observes the standard training events, so it works with the SDK, the
+CLI, or any custom loop that emits them; a crashed run is recorded with
+`status: failed` instead of disappearing.
 
 ## 8. Evaluation and benchmarking
 

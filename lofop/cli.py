@@ -18,6 +18,7 @@ Current commands::
     lofop evaluate         --config s --checkpoint best.pt --format coco --source val.json
     lofop export           --config lofop/configs/lofop-detect/s.yaml -o model.onnx
     lofop doctor
+    lofop runs {list, show, compare} [--root runs/registry]
 
 ``train``, ``benchmark``, ``predict``, and ``evaluate`` need the
 ``lofop[models]`` extra (PyTorch); torch imports happen inside those handlers
@@ -120,6 +121,17 @@ def build_parser() -> argparse.ArgumentParser:
     evaluate.add_argument("--batch-size", type=int, default=8, help="evaluation batch size")
     evaluate.add_argument("--json", action="store_true", help="print JSON instead of text")
     evaluate.add_argument("-o", "--output", type=Path, default=None, help="write JSON metrics here")
+
+    runs = commands.add_parser("runs", help="list and compare tracked training runs")
+    runs_actions = runs.add_subparsers(dest="action", required=True)
+    runs_list = runs_actions.add_parser("list", help="list runs in a registry")
+    runs_list.add_argument("--root", type=Path, default=Path("runs/registry"))
+    runs_show = runs_actions.add_parser("show", help="show one run's record and history")
+    runs_show.add_argument("run_id")
+    runs_show.add_argument("--root", type=Path, default=Path("runs/registry"))
+    runs_compare = runs_actions.add_parser("compare", help="side-by-side metric table")
+    runs_compare.add_argument("run_ids", nargs="+")
+    runs_compare.add_argument("--root", type=Path, default=Path("runs/registry"))
 
     commands.add_parser("doctor", help="report the LOFOP environment and available backends")
 
@@ -350,6 +362,33 @@ def _cmd_evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_runs(args: argparse.Namespace) -> int:
+    from lofop.mlops import compare_runs, list_runs, load_run
+
+    if args.action == "list":
+        records = list_runs(args.root)
+        if not records:
+            print(f"No runs under {args.root}")
+            return 0
+        print(f"{'RUN ID':<22} {'STATUS':<10} {'EPOCHS':<8} {'BEST mAP50':<11} NAME")
+        for r in records:
+            epochs = f"{r.get('epochs_completed', 0)}/{r.get('epochs_planned') or '?'}"
+            best = r.get("best_map50")
+            best_str = f"{best:.4f}" if isinstance(best, float) else "-"
+            print(f"{r['run_id']:<22} {r.get('status', '?'):<10} {epochs:<8} "
+                  f"{best_str:<11} {r.get('name', '')}")
+        return 0
+    if args.action == "show":
+        record, history = load_run(args.root, args.run_id)
+        print(json.dumps(record, indent=2))
+        if history:
+            last = history[-1]
+            print(f"history: {len(history)} epochs recorded (last: {json.dumps(last)})")
+        return 0
+    print(compare_runs(args.root, args.run_ids))
+    return 0
+
+
 def _cmd_doctor(args: argparse.Namespace) -> int:
     import importlib.util
     import platform
@@ -394,6 +433,8 @@ def main(argv: list[str] | None = None) -> int:
             return _cmd_evaluate(args)
         if args.command == "doctor":
             return _cmd_doctor(args)
+        if args.command == "runs":
+            return _cmd_runs(args)
         handlers = {
             "convert": _cmd_convert, "validate": _cmd_validate,
             "stats": _cmd_stats, "show": _cmd_show,

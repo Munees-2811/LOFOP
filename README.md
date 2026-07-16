@@ -43,6 +43,9 @@ installing, training, exporting, deploying, and troubleshooting LOFOP.
 - **Benchmarking** — `lofop benchmark` renders the standard metric table (mAP, FPS, params,
   FLOPs, model size) with optional CSV/JSON output (`--results-dir`), and never prints a
   number that was not actually measured.
+- **Experiment tracking (MLOps)** — `with lofop.mlops.track("runs/registry"):` records every
+  training run (settings, environment, per-epoch history, best/final metrics) as plain JSON
+  through the event bus; inspect with `lofop runs list / show / compare`. Torch-free.
 - **ONNX + TensorRT export** — `lofop export` writes a numerically verified ONNX graph (network +
   box decoding; `--dynamic` for variable input sizes, verified at two resolutions), or a
   TensorRT engine (`--format tensorrt --fp16`) via that same ONNX;

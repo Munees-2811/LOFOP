@@ -7,6 +7,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- MLOps: `lofop.mlops` local experiment tracking -- `with track(root):`
+  records every training run (settings, environment, per-epoch history,
+  best/final metrics, checkpoints) as plain JSON via the event bus, plus
+  `lofop runs list/show/compare` CLI. Torch-free registry; no trainer
+  changes; original implementation.
 - Training: original strong-augmentation recipe (2x2 mosaic + color
   jitter, tensor-native, no external augmentation library) behind an
   opt-in `strong_augment` flag on `DetectionTorchDataset`,
